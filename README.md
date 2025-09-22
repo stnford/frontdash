@@ -1,7 +1,7 @@
 
   # FrontDash startup instructions
 
-  Make sure you have node installed from (nodejs.org) first.
+  Make sure you have node installed from [nodejs.org](https://nodejs.org/en) first.
 
   ## Running the code
 
