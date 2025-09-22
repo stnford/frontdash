@@ -1,7 +1,7 @@
 
-  # Create Welcome Landing Page
+  # FrontDash startup instructions
 
-  Make sure you have node installed from "nodejs.org" first.
+  Make sure you have node installed from `nodejs.org` first.
 
   ## Running the code
 
@@ -9,3 +9,4 @@
 
   Run `npm run dev` to start the development server.
   
+  Then you should be good to go :)
