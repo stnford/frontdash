@@ -52,6 +52,12 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
     imageUrl: "",
     available: true
   });
+  const [restaurantName, setRestaurantName] = useState("Tony's Pizza Palace");
+  const [contactPerson, setContactPerson] = useState("Tony Rossi");
+  const [phoneNumber, setPhoneNumber] = useState("5551234567");
+  const [emailAddress, setEmailAddress] = useState("contact@tonyspizza.com");
+  const [accountUpdateMessage, setAccountUpdateMessage] = useState("");
+  const [accountUpdateError, setAccountUpdateError] = useState("");
 
   const [openingHours, setOpeningHours] = useState<OpeningHoursEntry[]>(defaultOpeningHours);
 
@@ -185,6 +191,24 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
 
     toast.success("Menu item updated successfully");
     cancelEditingMenuItem();
+  };
+
+  const handleAccountSettingsUpdate = () => {
+    const cleanedValue = phoneNumber.replace(/-/g, '').replace(/\s/g, '');
+    const numbersOnly = cleanedValue.replace(/[^0-9]/g, '');
+
+    if (numbersOnly.length !== 10) {
+      const message = "Phone number must be 10 digits. Try again.";
+      toast.error(message);
+      setAccountUpdateError(message);
+      setAccountUpdateMessage("");
+      setPhoneNumber(numbersOnly);
+      return;
+    }
+
+    setPhoneNumber(numbersOnly);
+    setAccountUpdateError("");
+    setAccountUpdateMessage("Changes successfully saved.");
   };
 
   const deleteMenuItem = (id: string) => {
@@ -573,23 +597,68 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
                   <CardTitle>Account Settings</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label>Restaurant Name</Label>
-                    <Input defaultValue="Tony's Pizza Palace" />
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-restaurant-name">Restaurant Name</Label>
+                    <Input
+                      id="settings-restaurant-name"
+                      value={restaurantName}
+                      onChange={(e) => {
+                        setRestaurantName(e.target.value);
+                        setAccountUpdateMessage("");
+                        setAccountUpdateError("");
+                      }}
+                    />
                   </div>
-                  <div>
-                    <Label>Contact Person</Label>
-                    <Input defaultValue="Tony Rossi" />
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-contact-person">Contact Person</Label>
+                    <Input
+                      id="settings-contact-person"
+                      value={contactPerson}
+                      onChange={(e) => {
+                        setContactPerson(e.target.value);
+                        setAccountUpdateMessage("");
+                        setAccountUpdateError("");
+                      }}
+                    />
                   </div>
-                  <div>
-                    <Label>Phone Number</Label>
-                    <Input defaultValue="5551234567" />
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-phone">Phone Number</Label>
+                    <Input
+                      id="settings-phone"
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => {
+                        const withoutDashes = e.target.value.replace(/-/g, '');
+                        setPhoneNumber(withoutDashes);
+                        setAccountUpdateMessage("");
+                        setAccountUpdateError("");
+                      }}
+                    />
                   </div>
-                  <div>
-                    <Label>Email Address</Label>
-                    <Input defaultValue="contact@tonyspizza.com" />
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-email">Email Address</Label>
+                    <Input
+                      id="settings-email"
+                      type="email"
+                      value={emailAddress}
+                      onChange={(e) => {
+                        setEmailAddress(e.target.value);
+                        setAccountUpdateMessage("");
+                        setAccountUpdateError("");
+                      }}
+                    />
                   </div>
-                  <Button>Update Information</Button>
+                  <div className="space-y-2">
+                    <Button type="button" onClick={handleAccountSettingsUpdate} className="bg-primary hover:bg-primary/90">
+                      Update Information
+                    </Button>
+                    {accountUpdateError && (
+                      <p className="text-sm text-red-500">{accountUpdateError}</p>
+                    )}
+                    {accountUpdateMessage && (
+                      <p className="text-sm text-green-600">{accountUpdateMessage}</p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 
