@@ -22,7 +22,10 @@ interface PaymentPageProps {
 }
 
 export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfirmation }: PaymentPageProps) {
-  const [tips, setTips] = useState<number>(0);
+  const [tipAmountInput, setTipAmountInput] = useState<string>("");
+  const parsedTipAmount = Number.parseFloat(tipAmountInput);
+  const tipAmount = Number.isNaN(parsedTipAmount) ? 0 : parsedTipAmount;
+  const tipOptions = [18, 20, 25];
   const [paymentForm, setPaymentForm] = useState({
     cardType: "",
     cardNumber: "",
@@ -48,7 +51,24 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const serviceCharge = subtotal * 0.0825;
-  const grandTotal = subtotal + serviceCharge + tips;
+  const grandTotal = subtotal + serviceCharge + tipAmount;
+
+  const handleTipOptionSelect = (percentage: number) => {
+    const calculatedTip = (subtotal * percentage) / 100;
+    setTipAmountInput(calculatedTip.toFixed(2));
+  };
+
+  const isTipOptionSelected = (percentage: number) => {
+    if (!tipAmountInput) {
+      return false;
+    }
+    const calculatedTip = Number(((subtotal * percentage) / 100).toFixed(2));
+    const currentTip = Number.parseFloat(tipAmountInput);
+    if (Number.isNaN(currentTip)) {
+      return false;
+    }
+    return Math.abs(currentTip - calculatedTip) < 0.01;
+  };
 
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +105,7 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
       items: cartItems,
       subtotal,
       serviceCharge,
-      tips,
+      tips: tipAmount,
       grandTotal,
       deliveryAddress: `${deliveryForm.buildingNumber} ${deliveryForm.streetName}, ${deliveryForm.apartmentNumber ? deliveryForm.apartmentNumber + ', ' : ''}${deliveryForm.city}, ${deliveryForm.state}`,
       contactName: deliveryForm.contactName,
@@ -255,17 +275,40 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
                   <span>${serviceCharge.toFixed(2)}</span>
                 </div>
                 
-                <div className="flex justify-between items-center">
-                  <Label htmlFor="tips">Tips</Label>
-                  <Input
-                    id="tips"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={tips}
-                    onChange={(e) => setTips(Number(e.target.value) || 0)}
-                    className="w-24 text-right"
-                  />
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Label htmlFor="tips" className="whitespace-nowrap">Tips</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {tipOptions.map((option) => (
+                        <Button
+                          key={option}
+                          type="button"
+                          size="sm"
+                          variant={isTipOptionSelected(option) ? "default" : "outline"}
+                          onClick={() => handleTipOptionSelect(option)}
+                          className="px-3"
+                        >
+                          {option}%
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Input
+                      id="tips"
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      value={tipAmountInput}
+                      onChange={(e) => setTipAmountInput(e.target.value)}
+                      placeholder="Enter tip"
+                      className="w-24 text-right"
+                    />
+                    <span className="flex-1 min-w-0 text-sm text-muted-foreground leading-snug">
+                      Your tip goes directly to your driver. No hassle!
+                    </span>
+                  </div>
                 </div>
                 
                 <Separator />
