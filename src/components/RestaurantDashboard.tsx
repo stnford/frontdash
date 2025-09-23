@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { LogOut, Menu, Settings, Clock, Users, DollarSign, ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { LogOut, Menu, Settings, Clock, Users, DollarSign, ArrowLeft, Plus, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { DragDropImageUpload } from "./DragDropImageUpload";
@@ -40,6 +40,13 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
   ]);
 
   const [newItemForm, setNewItemForm] = useState({
+    name: "",
+    price: "",
+    imageUrl: "",
+    available: true
+  });
+  const [editingMenuItemId, setEditingMenuItemId] = useState<string | null>(null);
+  const [editingMenuItemForm, setEditingMenuItemForm] = useState({
     name: "",
     price: "",
     imageUrl: "",
@@ -125,10 +132,68 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
     toast.success("Menu item added successfully");
   };
 
+  const startEditingMenuItem = (id: string) => {
+    const item = menuItems.find(menuItem => menuItem.id === id);
+    if (!item) {
+      return;
+    }
+
+    setEditingMenuItemId(id);
+    setEditingMenuItemForm({
+      name: item.name,
+      price: item.price.toString(),
+      imageUrl: item.image,
+      available: item.available
+    });
+  };
+
+  const cancelEditingMenuItem = () => {
+    setEditingMenuItemId(null);
+    setEditingMenuItemForm({ name: "", price: "", imageUrl: "", available: true });
+  };
+
+  const saveEditingMenuItem = () => {
+    if (!editingMenuItemId) {
+      return;
+    }
+
+    const trimmedName = editingMenuItemForm.name.trim();
+    if (!trimmedName) {
+      toast.error("Menu item name is required");
+      return;
+    }
+
+    const parsedPrice = Number(editingMenuItemForm.price);
+    if (Number.isNaN(parsedPrice) || parsedPrice <= 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
+    const updatedImage = editingMenuItemForm.imageUrl.trim();
+
+    setMenuItems(prev => prev.map(item =>
+      item.id === editingMenuItemId
+        ? {
+            ...item,
+            name: trimmedName,
+            price: parsedPrice,
+            image: updatedImage || item.image,
+            available: editingMenuItemForm.available
+          }
+        : item
+    ));
+
+    toast.success("Menu item updated successfully");
+    cancelEditingMenuItem();
+  };
+
   const deleteMenuItem = (id: string) => {
     const item = menuItems.find(i => i.id === id);
     if (confirm(`Are you sure you want to delete "${item?.name}"?`)) {
       setMenuItems(prev => prev.filter(i => i.id !== id));
+      if (editingMenuItemId === id) {
+        cancelEditingMenuItem();
+      }
       toast.success("Menu item deleted");
     }
   };
@@ -338,39 +403,117 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {menuItems.map(item => (
-                      <div key={item.id} className="flex items-center gap-4 p-4 border border-border rounded-lg">
-                        <ImageWithFallback
-                          src={item.image}
-                          alt={item.name}
-                          className="w-16 h-16 object-cover rounded-lg border flex-shrink-0"
-                        />
-                        <div className="flex-1">
-                          <h3 className="font-medium">{item.name}</h3>
-                          <p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p>
+                    {menuItems.map(item => {
+                      const isEditing = editingMenuItemId === item.id;
+                      const previewImage = isEditing ? (editingMenuItemForm.imageUrl || item.image) : item.image;
+
+                      return (
+                        <div key={item.id} className="space-y-4 p-4 border border-border rounded-lg">
+                          {isEditing ? (
+                            <div className="flex flex-col gap-4">
+                              <div className="flex flex-col gap-4 md:flex-row md:items-start">
+                                <ImageWithFallback
+                                  src={previewImage}
+                                  alt={editingMenuItemForm.name || item.name}
+                                  className="w-20 h-20 object-cover rounded-lg border flex-shrink-0"
+                                />
+                                <div className="flex-1 space-y-3">
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`edit-name-${item.id}`}>Item Name</Label>
+                                    <Input
+                                      id={`edit-name-${item.id}`}
+                                      value={editingMenuItemForm.name}
+                                      onChange={(e) => setEditingMenuItemForm(prev => ({ ...prev, name: e.target.value }))}
+                                    />
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="space-y-2">
+                                      <Label htmlFor={`edit-price-${item.id}`}>Price ($)</Label>
+                                      <Input
+                                        id={`edit-price-${item.id}`}
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={editingMenuItemForm.price}
+                                        onChange={(e) => setEditingMenuItemForm(prev => ({ ...prev, price: e.target.value }))}
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor={`edit-image-${item.id}`}>Image URL</Label>
+                                      <Input
+                                        id={`edit-image-${item.id}`}
+                                        value={editingMenuItemForm.imageUrl}
+                                        onChange={(e) => setEditingMenuItemForm(prev => ({ ...prev, imageUrl: e.target.value }))}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      id={`edit-available-${item.id}`}
+                                      type="checkbox"
+                                      checked={editingMenuItemForm.available}
+                                      onChange={(e) => setEditingMenuItemForm(prev => ({ ...prev, available: e.target.checked }))}
+                                      className="rounded"
+                                    />
+                                    <Label htmlFor={`edit-available-${item.id}`}>Available</Label>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <Button variant="outline" size="sm" onClick={cancelEditingMenuItem}>
+                                  Cancel
+                                </Button>
+                                <Button size="sm" onClick={saveEditingMenuItem} className="bg-primary hover:bg-primary/90">
+                                  Save Changes
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                              <div className="flex items-center gap-4 flex-1">
+                                <ImageWithFallback
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="w-16 h-16 object-cover rounded-lg border flex-shrink-0"
+                                />
+                                <div className="flex-1">
+                                  <h3 className="font-medium">{item.name}</h3>
+                                  <p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3">
+                                <Badge variant={item.available ? "default" : "secondary"}>
+                                  {item.available ? "Available" : "Unavailable"}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => startEditingMenuItem(item.id)}
+                                >
+                                  <Pencil className="w-4 h-4 mr-2" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => toggleItemAvailability(item.id)}
+                                >
+                                  Toggle
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => deleteMenuItem(item.id)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-3">
-                          <Badge variant={item.available ? "default" : "secondary"}>
-                            {item.available ? "Available" : "Unavailable"}
-                          </Badge>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => toggleItemAvailability(item.id)}
-                          >
-                            Toggle
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => deleteMenuItem(item.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
