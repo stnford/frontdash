@@ -20,9 +20,15 @@ interface MenuItem {
   availability: 'AVAILABLE' | 'UNAVAILABLE';
 }
 
-interface OpeningHours {
-  [key: string]: { open: string; close: string; closed: boolean };
-}
+type Day = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
+
+type DayHours = {
+  open: string;
+  close: string;
+  closed: boolean;
+};
+
+type OpeningHours = Record<Day, DayHours>;
 
 export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistration }: RestaurantRegistrationPageProps) {
   const [formData, setFormData] = useState({
@@ -61,7 +67,11 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
     setMenuItems(updated);
   };
 
-  const updateOpeningHours = (day: string, field: string, value: string | boolean) => {
+  const updateOpeningHours = <K extends keyof DayHours>(
+    day: Day,
+    field: K,
+    value: DayHours[K]
+  ) => {
     setOpeningHours(prev => ({
       ...prev,
       [day]: { ...prev[day], [field]: value }
@@ -104,12 +114,13 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
       phoneNumbers: [formData.phone],
       contactPerson: formData.contactPerson.trim(),
       email: formData.email.trim(),
-      openingHours: Object.entries(openingHours).map(([day, hours]) => ({
-        day,
-        open: hours.open,
-        close: hours.close,
-        closed: hours.closed
-      })),
+      openingHours: (Object.entries(openingHours) as [Day, DayHours][])
+        .map(([day, hours]) => ({
+          day,
+          open: hours.open,
+          close: hours.close,
+          closed: hours.closed
+        })),
       menu: validMenuItems.map(item => ({
         name: item.name.trim(),
         image: "",
@@ -221,7 +232,8 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
                 <CardTitle>Opening Hours</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {Object.entries(openingHours).map(([day, hours]) => (
+                {(Object.entries(openingHours) as [Day, DayHours][])
+                  .map(([day, hours]) => (
                   <div key={day} className="grid grid-cols-4 gap-4 items-center">
                     <Label className="font-medium">{day}</Label>
                     <div className="flex items-center gap-2">
@@ -332,4 +344,3 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
     </div>
   );
 }
-
