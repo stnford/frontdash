@@ -415,8 +415,8 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
                         </SelectTrigger>
                         <SelectContent>
                           {Array.from({length: 10}, (_, i) => (
-                            <SelectItem key={i} value={String(2024 + i)}>
-                              {2024 + i}
+                            <SelectItem key={i} value={String(2025 + i)}>
+                              {2025 + i}
                             </SelectItem>
                           ))}
                         </SelectContent>
