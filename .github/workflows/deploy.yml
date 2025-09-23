@@ -1,3 +1,4 @@
+# .github/workflows/deploy.yml
 name: Deploy to GitHub Pages
 
 on:
@@ -17,27 +18,15 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 18
           cache: "npm"
-
-      # Clean slate: remove node_modules and lockfile
-      - run: rm -rf node_modules package-lock.json
-
-      # Install with optional deps disabled
-      - run: npm install --no-optional
-
-      # Build with Rollup’s native path skipped
+      - run: npm ci || npm install
       - run: npm run build
-        env:
-          ROLLUP_SKIP_NODE_MODULES_NATIVE: "true"
-
       - run: cp dist/index.html dist/404.html
-
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
