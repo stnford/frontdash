@@ -27,6 +27,13 @@ interface RestaurantOpeningHour {
   closed: boolean;
 }
 
+interface ActiveRestaurantSummary {
+  id: string;
+  name: string;
+  cuisine: string;
+  status: 'online' | 'offline';
+}
+
 export interface RestaurantApplication {
   id: string;
   name: string;
@@ -149,6 +156,14 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
       return [...additions, ...prev];
     });
   }, [incomingRequests, onConsumeIncomingRequests]);
+
+
+  const [activeRestaurants] = useState<ActiveRestaurantSummary[]>([
+    { id: "101", name: "Sunset Grill", cuisine: "American", status: 'online' },
+    { id: "102", name: "Luna Sushi", cuisine: "Japanese", status: 'online' },
+    { id: "103", name: "Spice Route", cuisine: "Indian", status: 'offline' },
+    { id: "104", name: "Garden Fresh", cuisine: "Vegan", status: 'online' }
+  ]);
 
   const [staffMembers, setStaffMembers] = useState([
     { id: "1", name: "John Smith", username: "smith01", role: "staff", status: "active" },
@@ -329,7 +344,7 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
                     <CardTitle className="text-sm font-medium">Active Restaurants</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">6</div>
+                    <div className="text-2xl font-bold">{activeRestaurants.filter(restaurant => restaurant.status === 'online').length}</div>
                   </CardContent>
                 </Card>
                 
@@ -360,6 +375,37 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
                   </CardContent>
                 </Card>
               </div>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-semibold">Active Restaurants Snapshot</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {activeRestaurants.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No active restaurants online</p>
+                  ) : (
+                    activeRestaurants.map((restaurant) => (
+                      <div
+                        key={restaurant.id}
+                        className="flex flex-col gap-3 rounded-lg border border-border p-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div>
+                          <h3 className="text-base font-semibold">{restaurant.name}</h3>
+                          <p className="text-sm text-muted-foreground">{restaurant.cuisine}</p>
+                        </div>
+                        <div className="flex flex-col items-start gap-3 text-sm md:flex-row md:items-center md:gap-4">
+                          <Badge variant={restaurant.status === 'online' ? 'default' : 'secondary'} className="capitalize">
+                            {restaurant.status === 'online' ? 'Online' : 'Offline'}
+                          </Badge>
+                          <span className="text-muted-foreground">
+                            {restaurant.status === 'online' ? 'Accepting orders' : 'Temporarily paused'}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+
             </div>
           )}
 
@@ -593,4 +639,15 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
 
