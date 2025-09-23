@@ -143,6 +143,7 @@ export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
 
   const [newStaffForm, setNewStaffForm] = useState({ fullName: "", username: "", password: "" });
   const [newDriverForm, setNewDriverForm] = useState({ name: "" });
+  const [driverNameError, setDriverNameError] = useState("");
 
   const handleLogout = () => {
     toast.success("Logged out successfully");
@@ -192,19 +193,29 @@ export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
   };
 
   const addDriver = () => {
-    if (!newDriverForm.name.trim()) {
+    const trimmedName = newDriverForm.name.trim();
+
+    if (!trimmedName) {
+      setDriverNameError("Driver name is required");
       toast.error("Driver name is required");
+      return;
+    }
+
+    const nameExists = drivers.some(driver => driver.name.toLowerCase() === trimmedName.toLowerCase());
+    if (nameExists) {
+      setDriverNameError("Name is not unique. Driver already enrolled with this name. Try again.");
       return;
     }
 
     const newDriver = {
       id: Date.now().toString(),
-      name: newDriverForm.name,
+      name: trimmedName,
       status: "available"
     };
 
     setDrivers(prev => [...prev, newDriver]);
     setNewDriverForm({ name: "" });
+    setDriverNameError("");
     toast.success("Driver hired successfully");
   };
 
@@ -504,13 +515,22 @@ export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
                   <CardTitle>Hire New Driver</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
+                  <div className="space-y-2">
                     <Label>Driver Name (must be unique)</Label>
                     <Input 
                       value={newDriverForm.name}
-                      onChange={(e) => setNewDriverForm(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setNewDriverForm(prev => ({ ...prev, name: value }));
+                        if (driverNameError) {
+                          setDriverNameError("");
+                        }
+                      }}
                       placeholder="Mike Wilson"
                     />
+                    {driverNameError && (
+                      <p className="text-sm text-red-500">{driverNameError}</p>
+                    )}
                   </div>
                   <Button onClick={addDriver}>
                     <UserPlus className="w-4 h-4 mr-2" />
