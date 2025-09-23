@@ -176,7 +176,7 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
     { id: "3", name: "David Lee", status: "available" }
   ]);
 
-  const [newStaffForm, setNewStaffForm] = useState({ fullName: "", username: "", password: "" });
+  const [newStaffForm, setNewStaffForm] = useState({ firstName: "", lastName: "", username: "", password: "" });
   const [staffNameError, setStaffNameError] = useState("");
   const [newDriverForm, setNewDriverForm] = useState({ name: "" });
   const [driverNameError, setDriverNameError] = useState("");
@@ -197,15 +197,23 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
   };
 
   const addStaff = () => {
-    const trimmedName = newStaffForm.fullName.trim();
+    const trimmedFirstName = newStaffForm.firstName.trim();
+    const trimmedLastName = newStaffForm.lastName.trim();
 
-    if (!trimmedName || trimmedName.length < 2) {
-      toast.error("Full name must be at least 2 characters");
+    if (!trimmedFirstName || !trimmedLastName) {
+      toast.error("First and last name are required");
       return;
     }
 
+    if (trimmedFirstName.length < 2 || trimmedLastName.length < 2) {
+      toast.error("Names must be at least 2 characters");
+      return;
+    }
+
+    const fullName = `${trimmedFirstName} ${trimmedLastName}`.trim();
+
     const isDuplicate = staffMembers.some(
-      staff => staff.name.trim().toLowerCase() === trimmedName.toLowerCase()
+      staff => staff.name.trim().toLowerCase() === fullName.toLowerCase()
     );
 
     if (isDuplicate) {
@@ -213,23 +221,24 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
       return;
     }
 
-    const lastName = trimmedName.split(' ').pop()?.toLowerCase() || '';
+    const lastNameToken = trimmedLastName.split(' ').pop()?.toLowerCase() || trimmedFirstName.toLowerCase();
     const randomDigits = Math.floor(10 + Math.random() * 90).toString();
-    const username = lastName + randomDigits;
+    const username = lastNameToken + randomDigits;
 
     const newStaff = {
       id: Date.now().toString(),
-      name: trimmedName,
+      name: fullName,
       username,
       role: "staff",
       status: "active"
     };
 
     setStaffMembers(prev => [...prev, newStaff]);
-    setNewStaffForm({ fullName: "", username: "", password: "" });
+    setNewStaffForm({ firstName: "", lastName: "", username: "", password: "" });
     setStaffNameError("");
     toast.success("Staff Member successfully added to system.");
   };
+
 
   const deleteStaff = (id: string) => {
     const staff = staffMembers.find(s => s.id === id);
@@ -540,23 +549,41 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
                   <CardTitle>Add New Staff Member</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Full Name (must be unique)</Label>
-                    <Input
-                      value={newStaffForm.fullName}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setNewStaffForm(prev => ({ ...prev, fullName: value }));
-                        if (staffNameError) {
-                          setStaffNameError("");
-                        }
-                      }}
-                      placeholder="John Smith"
-                    />
-                    {staffNameError && (
-                      <p className="text-sm text-red-500">{staffNameError}</p>
-                    )}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="staff-first-name">First Name</Label>
+                      <Input
+                        id="staff-first-name"
+                        value={newStaffForm.firstName}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setNewStaffForm(prev => ({ ...prev, firstName: value }));
+                          if (staffNameError) {
+                            setStaffNameError("");
+                          }
+                        }}
+                        placeholder="John"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="staff-last-name">Last Name</Label>
+                      <Input
+                        id="staff-last-name"
+                        value={newStaffForm.lastName}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setNewStaffForm(prev => ({ ...prev, lastName: value }));
+                          if (staffNameError) {
+                            setStaffNameError("");
+                          }
+                        }}
+                        placeholder="Smith"
+                      />
+                    </div>
                   </div>
+                  {staffNameError && (
+                    <p className="text-sm text-red-500">{staffNameError}</p>
+                  )}
                   <Button onClick={addStaff}>
                     <UserPlus className="w-4 h-4 mr-2" />
                     Add Staff Member
@@ -660,6 +687,9 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
     </div>
   );
 }
+
+
+
 
 
 
