@@ -17,6 +17,13 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    env:
+
+      ROLLUP_SKIP_NODE_MODULES_NATIVE: "true"
+
+      NPM_CONFIG_IGNORE_OPTIONAL: "true"
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -25,13 +32,8 @@ jobs:
           cache: "npm"
 
       - run: npm install
-        env:
-
-          ROLLUP_SKIP_NODE_MODULES_NATIVE: "true"
 
       - run: npm run build
-        env:
-          ROLLUP_SKIP_NODE_MODULES_NATIVE: "true"
 
       - run: cp dist/index.html dist/404.html
 
