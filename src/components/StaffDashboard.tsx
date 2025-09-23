@@ -26,16 +26,6 @@ export function StaffDashboard({ onNavigateToLanding }: StaffDashboardProps) {
       address: "123 Main St, City, State",
       phone: "5551234567",
       status: "pending"
-    },
-    {
-      id: "FD123457", 
-      restaurant: "Burger Junction",
-      customer: "Sarah Johnson",
-      items: "1x Classic Burger, 1x Fries",
-      total: 18.50,
-      address: "456 Oak Ave, City, State", 
-      phone: "5559876543",
-      status: "pending"
     }
   ]);
 

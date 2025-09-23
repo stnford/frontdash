@@ -5,6 +5,7 @@ import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { LogOut, Menu, Settings, Clock, Users, DollarSign, ArrowLeft, Plus, Trash2, Pencil } from "lucide-react";
+
 import { toast } from "sonner";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { DragDropImageUpload } from "./DragDropImageUpload";
@@ -12,6 +13,23 @@ import { DragDropImageUpload } from "./DragDropImageUpload";
 interface RestaurantDashboardProps {
   onNavigateToLanding: () => void;
 }
+
+type OpeningHoursEntry = {
+  day: string;
+  open: string;
+  close: string;
+  closed: boolean;
+};
+
+const defaultOpeningHours: OpeningHoursEntry[] = [
+  { day: 'Monday', open: '09:00', close: '22:00', closed: false },
+  { day: 'Tuesday', open: '09:00', close: '22:00', closed: false },
+  { day: 'Wednesday', open: '09:00', close: '22:00', closed: false },
+  { day: 'Thursday', open: '09:00', close: '22:00', closed: false },
+  { day: 'Friday', open: '09:00', close: '23:00', closed: false },
+  { day: 'Saturday', open: '10:00', close: '23:00', closed: false },
+  { day: 'Sunday', open: '10:00', close: '21:00', closed: false },
+];
 
 export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'menu' | 'hours' | 'settings'>('overview');
@@ -28,6 +46,21 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
     imageUrl: "",
     available: true
   });
+  const [editingMenuItemId, setEditingMenuItemId] = useState<string | null>(null);
+  const [editingMenuItemForm, setEditingMenuItemForm] = useState({
+    name: "",
+    price: "",
+    imageUrl: "",
+    available: true
+  });
+  const [restaurantName, setRestaurantName] = useState("Tony's Pizza Palace");
+  const [contactPerson, setContactPerson] = useState("Tony Rossi");
+  const [phoneNumber, setPhoneNumber] = useState("5551234567");
+  const [emailAddress, setEmailAddress] = useState("contact@tonyspizza.com");
+  const [accountUpdateMessage, setAccountUpdateMessage] = useState("");
+  const [accountUpdateError, setAccountUpdateError] = useState("");
+
+  const [openingHours, setOpeningHours] = useState<OpeningHoursEntry[]>(defaultOpeningHours);
 
   const getSampleFoodImage = () => {
     const sampleImages = [
@@ -45,6 +78,29 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
     const imageUrl = getSampleFoodImage();
     setNewItemForm(prev => ({ ...prev, imageUrl }));
     toast.success("Sample food image added!");
+  };
+
+  const updateOpeningHours = (day: string, field: 'open' | 'close' | 'closed', value: string | boolean) => {
+    setOpeningHours(prev => {
+      const updated = [...prev];
+      const index = updated.findIndex(entry => entry.day === day);
+
+      if (index === -1) {
+        return prev;
+      }
+
+      const current = updated[index];
+
+      if (field === 'closed') {
+        updated[index] = { ...current, closed: Boolean(value) };
+      } else if (field === 'open') {
+        updated[index] = { ...current, open: value as string };
+      } else if (field === 'close') {
+        updated[index] = { ...current, close: value as string };
+      }
+
+      return updated;
+    });
   };
 
   const handleLogout = () => {
@@ -83,10 +139,86 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
     toast.success("Menu item added successfully");
   };
 
+  const startEditingMenuItem = (id: string) => {
+    const item = menuItems.find(menuItem => menuItem.id === id);
+    if (!item) {
+      return;
+    }
+
+    setEditingMenuItemId(id);
+    setEditingMenuItemForm({
+      name: item.name,
+      price: item.price.toString(),
+      imageUrl: item.image,
+      available: item.available
+    });
+  };
+
+  const cancelEditingMenuItem = () => {
+    setEditingMenuItemId(null);
+    setEditingMenuItemForm({ name: "", price: "", imageUrl: "", available: true });
+  };
+
+  const saveEditingMenuItem = () => {
+    if (!editingMenuItemId) {
+      return;
+    }
+
+    const trimmedName = editingMenuItemForm.name.trim();
+    if (!trimmedName) {
+      toast.error("Menu item name is required");
+      return;
+    }
+
+    const parsedPrice = Number(editingMenuItemForm.price);
+    if (Number.isNaN(parsedPrice) || parsedPrice <= 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
+    const updatedImage = editingMenuItemForm.imageUrl.trim();
+
+    setMenuItems(prev => prev.map(item =>
+      item.id === editingMenuItemId
+        ? {
+            ...item,
+            name: trimmedName,
+            price: parsedPrice,
+            image: updatedImage || item.image,
+            available: editingMenuItemForm.available
+          }
+        : item
+    ));
+
+    toast.success("Menu item updated successfully");
+    cancelEditingMenuItem();
+  };
+
+  const handleAccountSettingsUpdate = () => {
+    const cleanedValue = phoneNumber.replace(/-/g, '').replace(/\s/g, '');
+    const numbersOnly = cleanedValue.replace(/[^0-9]/g, '');
+
+    if (numbersOnly.length !== 10) {
+      const message = "Phone number must be 10 digits. Try again.";
+      toast.error(message);
+      setAccountUpdateError(message);
+      setAccountUpdateMessage("");
+      setPhoneNumber(numbersOnly);
+      return;
+    }
+
+    setPhoneNumber(numbersOnly);
+    setAccountUpdateError("");
+    setAccountUpdateMessage("Changes successfully saved.");
+  };
+
   const deleteMenuItem = (id: string) => {
     const item = menuItems.find(i => i.id === id);
     if (confirm(`Are you sure you want to delete "${item?.name}"?`)) {
       setMenuItems(prev => prev.filter(i => i.id !== id));
+      if (editingMenuItemId === id) {
+        cancelEditingMenuItem();
+      }
       toast.success("Menu item deleted");
     }
   };
@@ -296,39 +428,117 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {menuItems.map(item => (
-                      <div key={item.id} className="flex items-center gap-4 p-4 border border-border rounded-lg">
-                        <ImageWithFallback
-                          src={item.image}
-                          alt={item.name}
-                          className="w-16 h-16 object-cover rounded-lg border flex-shrink-0"
-                        />
-                        <div className="flex-1">
-                          <h3 className="font-medium">{item.name}</h3>
-                          <p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p>
+                    {menuItems.map(item => {
+                      const isEditing = editingMenuItemId === item.id;
+                      const previewImage = isEditing ? (editingMenuItemForm.imageUrl || item.image) : item.image;
+
+                      return (
+                        <div key={item.id} className="space-y-4 p-4 border border-border rounded-lg">
+                          {isEditing ? (
+                            <div className="flex flex-col gap-4">
+                              <div className="flex flex-col gap-4 md:flex-row md:items-start">
+                                <ImageWithFallback
+                                  src={previewImage}
+                                  alt={editingMenuItemForm.name || item.name}
+                                  className="w-20 h-20 object-cover rounded-lg border flex-shrink-0"
+                                />
+                                <div className="flex-1 space-y-3">
+                                  <div className="space-y-2">
+                                    <Label htmlFor={`edit-name-${item.id}`}>Item Name</Label>
+                                    <Input
+                                      id={`edit-name-${item.id}`}
+                                      value={editingMenuItemForm.name}
+                                      onChange={(e) => setEditingMenuItemForm(prev => ({ ...prev, name: e.target.value }))}
+                                    />
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div className="space-y-2">
+                                      <Label htmlFor={`edit-price-${item.id}`}>Price ($)</Label>
+                                      <Input
+                                        id={`edit-price-${item.id}`}
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={editingMenuItemForm.price}
+                                        onChange={(e) => setEditingMenuItemForm(prev => ({ ...prev, price: e.target.value }))}
+                                      />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label htmlFor={`edit-image-${item.id}`}>Image URL</Label>
+                                      <Input
+                                        id={`edit-image-${item.id}`}
+                                        value={editingMenuItemForm.imageUrl}
+                                        onChange={(e) => setEditingMenuItemForm(prev => ({ ...prev, imageUrl: e.target.value }))}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      id={`edit-available-${item.id}`}
+                                      type="checkbox"
+                                      checked={editingMenuItemForm.available}
+                                      onChange={(e) => setEditingMenuItemForm(prev => ({ ...prev, available: e.target.checked }))}
+                                      className="rounded"
+                                    />
+                                    <Label htmlFor={`edit-available-${item.id}`}>Available</Label>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <Button variant="outline" size="sm" onClick={cancelEditingMenuItem}>
+                                  Cancel
+                                </Button>
+                                <Button size="sm" onClick={saveEditingMenuItem} className="bg-primary hover:bg-primary/90">
+                                  Save Changes
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                              <div className="flex items-center gap-4 flex-1">
+                                <ImageWithFallback
+                                  src={item.image}
+                                  alt={item.name}
+                                  className="w-16 h-16 object-cover rounded-lg border flex-shrink-0"
+                                />
+                                <div className="flex-1">
+                                  <h3 className="font-medium">{item.name}</h3>
+                                  <p className="text-sm text-muted-foreground">${item.price.toFixed(2)}</p>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3">
+                                <Badge variant={item.available ? "default" : "secondary"}>
+                                  {item.available ? "Available" : "Unavailable"}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => startEditingMenuItem(item.id)}
+                                >
+                                  <Pencil className="w-4 h-4 mr-2" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => toggleItemAvailability(item.id)}
+                                >
+                                  Toggle
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => deleteMenuItem(item.id)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-3">
-                          <Badge variant={item.available ? "default" : "secondary"}>
-                            {item.available ? "Available" : "Unavailable"}
-                          </Badge>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => toggleItemAvailability(item.id)}
-                          >
-                            Toggle
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => deleteMenuItem(item.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -345,12 +555,32 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
-                      <div key={day} className="grid grid-cols-4 gap-4 items-center">
-                        <Label className="font-medium">{day}</Label>
-                        <Input type="time" defaultValue="09:00" />
-                        <Input type="time" defaultValue="22:00" />
-                        <Button size="sm" variant="outline">Update</Button>
+                    {openingHours.map((entry) => (
+                      <div key={entry.day} className="grid grid-cols-4 gap-4 items-center">
+                        <Label className="font-medium">{entry.day}</Label>
+                        <Input
+                          type="time"
+                          value={entry.open}
+                          onChange={(e) => updateOpeningHours(entry.day, 'open', e.target.value)}
+                          disabled={entry.closed}
+                          className="text-sm"
+                        />
+                        <Input
+                          type="time"
+                          value={entry.close}
+                          onChange={(e) => updateOpeningHours(entry.day, 'close', e.target.value)}
+                          disabled={entry.closed}
+                          className="text-sm"
+                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={entry.closed}
+                            onChange={(e) => updateOpeningHours(entry.day, 'closed', e.target.checked)}
+                            className="rounded"
+                          />
+                          <Label className="text-sm">Closed</Label>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -368,23 +598,68 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
                   <CardTitle>Account Settings</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label>Restaurant Name</Label>
-                    <Input defaultValue="Tony's Pizza Palace" />
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-restaurant-name">Restaurant Name</Label>
+                    <Input
+                      id="settings-restaurant-name"
+                      value={restaurantName}
+                      onChange={(e) => {
+                        setRestaurantName(e.target.value);
+                        setAccountUpdateMessage("");
+                        setAccountUpdateError("");
+                      }}
+                    />
                   </div>
-                  <div>
-                    <Label>Contact Person</Label>
-                    <Input defaultValue="Tony Rossi" />
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-contact-person">Contact Person</Label>
+                    <Input
+                      id="settings-contact-person"
+                      value={contactPerson}
+                      onChange={(e) => {
+                        setContactPerson(e.target.value);
+                        setAccountUpdateMessage("");
+                        setAccountUpdateError("");
+                      }}
+                    />
                   </div>
-                  <div>
-                    <Label>Phone Number</Label>
-                    <Input defaultValue="5551234567" />
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-phone">Phone Number</Label>
+                    <Input
+                      id="settings-phone"
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => {
+                        const withoutDashes = e.target.value.replace(/-/g, '');
+                        setPhoneNumber(withoutDashes);
+                        setAccountUpdateMessage("");
+                        setAccountUpdateError("");
+                      }}
+                    />
                   </div>
-                  <div>
-                    <Label>Email Address</Label>
-                    <Input defaultValue="contact@tonyspizza.com" />
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-email">Email Address</Label>
+                    <Input
+                      id="settings-email"
+                      type="email"
+                      value={emailAddress}
+                      onChange={(e) => {
+                        setEmailAddress(e.target.value);
+                        setAccountUpdateMessage("");
+                        setAccountUpdateError("");
+                      }}
+                    />
                   </div>
-                  <Button>Update Information</Button>
+                  <div className="space-y-2">
+                    <Button type="button" onClick={handleAccountSettingsUpdate} className="bg-primary hover:bg-primary/90">
+                      Update Information
+                    </Button>
+                    {accountUpdateError && (
+                      <p className="text-sm text-red-500">{accountUpdateError}</p>
+                    )}
+                    {accountUpdateMessage && (
+                      <p className="text-sm text-green-600">{accountUpdateMessage}</p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 

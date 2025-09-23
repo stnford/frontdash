@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { SimpleHeader } from "./components/SimpleHeader";
 import { RestaurantGrid } from "./components/RestaurantGrid";
 import { SignInPage } from "./components/SignInPage";
@@ -7,8 +7,10 @@ import { CartPage } from "./components/CartPage";
 import { PaymentPage } from "./components/PaymentPage";
 import { OrderConfirmationPage } from "./components/OrderConfirmationPage";
 import { RestaurantRegistrationPage } from "./components/RestaurantRegistrationPage";
+import { RegistrationThankYouPage } from "./components/RegistrationThankYouPage";
 import { RestaurantDashboard } from "./components/RestaurantDashboard";
 import { AdminDashboard } from "./components/AdminDashboard";
+import type { RestaurantApplication } from "./components/AdminDashboard";
 import { StaffDashboard } from "./components/StaffDashboard";
 import { LoginForm } from "./components/LoginForm";
 import { RestaurantSwitchDialog } from "./components/RestaurantSwitchDialog";
@@ -21,6 +23,7 @@ type PageType =
   | 'payment' 
   | 'order-confirmation'
   | 'restaurant-registration'
+  | 'restaurant-registration-thank-you'
   | 'restaurant-login'
   | 'admin-login'
   | 'staff-login'
@@ -54,6 +57,7 @@ export default function App() {
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [showRestaurantSwitchDialog, setShowRestaurantSwitchDialog] = useState(false);
   const [pendingCartItem, setPendingCartItem] = useState<Omit<CartItem, 'id'> | null>(null);
+  const [pendingAdminRestaurantRequests, setPendingAdminRestaurantRequests] = useState<RestaurantApplication[]>([]);
   
   // Navigation functions
   const navigateToSignIn = () => setCurrentPage('signin');
@@ -77,6 +81,16 @@ export default function App() {
   };
   
   const navigateToRestaurantRegistration = () => setCurrentPage('restaurant-registration');
+
+  const handleRestaurantRegistrationSubmit = (application: RestaurantApplication) => {
+    setPendingAdminRestaurantRequests(prev => [...prev, application]);
+    setCurrentPage('restaurant-registration-thank-you');
+  };
+
+  const handleConsumePendingAdminRequests = useCallback(() => {
+    setPendingAdminRestaurantRequests([]);
+  }, [setPendingAdminRestaurantRequests]);
+
   
   const navigateToRestaurantLogin = () => setCurrentPage('restaurant-login');
   const navigateToAdminLogin = () => setCurrentPage('admin-login');
@@ -200,6 +214,13 @@ export default function App() {
       return (
         <RestaurantRegistrationPage 
           onNavigateBack={navigateToSignIn}
+          onSubmitRegistration={handleRestaurantRegistrationSubmit}
+        />
+      );
+      
+    case 'restaurant-registration-thank-you':
+      return (
+        <RegistrationThankYouPage
           onNavigateToLanding={navigateToLanding}
         />
       );
@@ -245,6 +266,8 @@ export default function App() {
       return (
         <AdminDashboard 
           onNavigateToLanding={navigateToLanding}
+          incomingRequests={pendingAdminRestaurantRequests}
+          onConsumeIncomingRequests={handleConsumePendingAdminRequests}
         />
       );
       
@@ -258,7 +281,7 @@ export default function App() {
     default: // 'landing'
 
       return (
-        <div className="h-screen bg-background flex flex-col overflow-hidden">
+        <div className="min-h-screen bg-background flex flex-col">
           <SimpleHeader onNavigateToSignIn={navigateToSignIn} />
 
           <main className="flex-1 flex flex-col">
@@ -283,3 +306,4 @@ export default function App() {
       );
   }
 }
+
