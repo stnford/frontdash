@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
+import React from "react";
 import { Button } from "./ui/button";
 import { ImageIcon, Upload, X } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 interface DragDropImageUploadProps {
   onImageSelect: (imageUrl: string) => void;
