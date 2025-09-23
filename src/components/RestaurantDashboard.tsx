@@ -13,6 +13,23 @@ interface RestaurantDashboardProps {
   onNavigateToLanding: () => void;
 }
 
+type OpeningHoursEntry = {
+  day: string;
+  open: string;
+  close: string;
+  closed: boolean;
+};
+
+const defaultOpeningHours: OpeningHoursEntry[] = [
+  { day: 'Monday', open: '09:00', close: '22:00', closed: false },
+  { day: 'Tuesday', open: '09:00', close: '22:00', closed: false },
+  { day: 'Wednesday', open: '09:00', close: '22:00', closed: false },
+  { day: 'Thursday', open: '09:00', close: '22:00', closed: false },
+  { day: 'Friday', open: '09:00', close: '23:00', closed: false },
+  { day: 'Saturday', open: '10:00', close: '23:00', closed: false },
+  { day: 'Sunday', open: '10:00', close: '21:00', closed: false },
+];
+
 export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'menu' | 'hours' | 'settings'>('overview');
   const [menuItems, setMenuItems] = useState([
@@ -28,6 +45,8 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
     imageUrl: "",
     available: true
   });
+
+  const [openingHours, setOpeningHours] = useState<OpeningHoursEntry[]>(defaultOpeningHours);
 
   const getSampleFoodImage = () => {
     const sampleImages = [
@@ -45,6 +64,29 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
     const imageUrl = getSampleFoodImage();
     setNewItemForm(prev => ({ ...prev, imageUrl }));
     toast.success("Sample food image added!");
+  };
+
+  const updateOpeningHours = (day: string, field: 'open' | 'close' | 'closed', value: string | boolean) => {
+    setOpeningHours(prev => {
+      const updated = [...prev];
+      const index = updated.findIndex(entry => entry.day === day);
+
+      if (index === -1) {
+        return prev;
+      }
+
+      const current = updated[index];
+
+      if (field === 'closed') {
+        updated[index] = { ...current, closed: Boolean(value) };
+      } else if (field === 'open') {
+        updated[index] = { ...current, open: value as string };
+      } else if (field === 'close') {
+        updated[index] = { ...current, close: value as string };
+      }
+
+      return updated;
+    });
   };
 
   const handleLogout = () => {
@@ -345,12 +387,32 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => (
-                      <div key={day} className="grid grid-cols-4 gap-4 items-center">
-                        <Label className="font-medium">{day}</Label>
-                        <Input type="time" defaultValue="09:00" />
-                        <Input type="time" defaultValue="22:00" />
-                        <Button size="sm" variant="outline">Update</Button>
+                    {openingHours.map((entry) => (
+                      <div key={entry.day} className="grid grid-cols-4 gap-4 items-center">
+                        <Label className="font-medium">{entry.day}</Label>
+                        <Input
+                          type="time"
+                          value={entry.open}
+                          onChange={(e) => updateOpeningHours(entry.day, 'open', e.target.value)}
+                          disabled={entry.closed}
+                          className="text-sm"
+                        />
+                        <Input
+                          type="time"
+                          value={entry.close}
+                          onChange={(e) => updateOpeningHours(entry.day, 'close', e.target.value)}
+                          disabled={entry.closed}
+                          className="text-sm"
+                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={entry.closed}
+                            onChange={(e) => updateOpeningHours(entry.day, 'closed', e.target.checked)}
+                            className="rounded"
+                          />
+                          <Label className="text-sm">Closed</Label>
+                        </div>
                       </div>
                     ))}
                   </div>
