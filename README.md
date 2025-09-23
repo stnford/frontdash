@@ -10,3 +10,11 @@
   Run `npm run dev` to start the development server.
   
   Then you should be good to go :)
+
+  ## To edit code
+
+  Make sure you have react dependencies installed.
+  
+  Run `npm install react react-dom` to add React and ReactDOM as dependencies
+  Run `npm install -D @types/react @types/react-dom` to install type definitions.
+  
