@@ -18,12 +18,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-
-      ROLLUP_SKIP_NODE_MODULES_NATIVE: "true"
-
-      NPM_CONFIG_IGNORE_OPTIONAL: "true"
-
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,9 +25,16 @@ jobs:
           node-version: 20
           cache: "npm"
 
-      - run: npm install
+      # Clean slate: remove node_modules and lockfile
+      - run: rm -rf node_modules package-lock.json
 
+      # Install with optional deps disabled
+      - run: npm install --no-optional
+
+      # Build with Rollup’s native path skipped
       - run: npm run build
+        env:
+          ROLLUP_SKIP_NODE_MODULES_NATIVE: "true"
 
       - run: cp dist/index.html dist/404.html
 
