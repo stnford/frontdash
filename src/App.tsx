@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { SimpleHeader } from "./components/SimpleHeader";
 import { RestaurantGrid } from "./components/RestaurantGrid";
 import { SignInPage } from "./components/SignInPage";
@@ -258,7 +258,7 @@ export default function App() {
     default: // 'landing'
 
       return (
-        <div className="h-screen bg-background flex flex-col overflow-hidden">
+        <div className="min-h-screen bg-background flex flex-col">
           <SimpleHeader onNavigateToSignIn={navigateToSignIn} />
 
           <main className="flex-1 flex flex-col">
