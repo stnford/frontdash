@@ -11,12 +11,123 @@ interface AdminDashboardProps {
   onNavigateToLanding: () => void;
 }
 
+interface RestaurantMenuItem {
+  name: string;
+  image: string;
+  price: number;
+  availability: 'AVAILABLE' | 'UNAVAILABLE';
+}
+
+interface RestaurantOpeningHour {
+  day: string;
+  open: string;
+  close: string;
+  closed: boolean;
+}
+
+interface RestaurantApplication {
+  id: string;
+  name: string;
+  image?: string;
+  streetAddress: string;
+  phoneNumbers: string[];
+  contactPerson: string;
+  email: string;
+  openingHours: RestaurantOpeningHour[];
+  menu: RestaurantMenuItem[];
+}
+
+function formatTime(time: string) {
+  const [hoursStr, minutes] = time.split(':');
+  let hours = Number(hoursStr);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  if (hours === 0) {
+    hours = 12;
+  }
+  return `${hours}:${minutes} ${period}`;
+}
+
 export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'restaurants' | 'staff' | 'drivers'>('overview');
   
-  const [pendingRestaurants, setPendingRestaurants] = useState([
-    { id: "1", name: "Bella Italia", contactPerson: "Marco Romano", email: "marco@bellaitalia.com", status: "pending" },
-    { id: "2", name: "Sushi Zen", contactPerson: "Akira Tanaka", email: "akira@sushizen.com", status: "pending" }
+  const [pendingRestaurants, setPendingRestaurants] = useState<RestaurantApplication[]>([
+    {
+      id: "1",
+      name: "Bella Italia",
+      image: "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f",
+      streetAddress: "1200 Market Street, San Francisco, CA 94102",
+      phoneNumbers: ['4155550198', '4155552874'],
+      contactPerson: "Marco Romano",
+      email: "marco@bellaitalia.com",
+      openingHours: [
+        { day: 'Monday', open: '10:00', close: '22:00', closed: false },
+        { day: 'Tuesday', open: '10:00', close: '22:00', closed: false },
+        { day: 'Wednesday', open: '10:00', close: '22:00', closed: false },
+        { day: 'Thursday', open: '10:00', close: '23:00', closed: false },
+        { day: 'Friday', open: '10:00', close: '23:30', closed: false },
+        { day: 'Saturday', open: '11:00', close: '23:30', closed: false },
+        { day: 'Sunday', open: '11:00', close: '21:00', closed: false }
+      ],
+      menu: [
+        {
+          name: 'Margherita Pizza',
+          image: 'https://images.unsplash.com/photo-1548365328-5b0b2d3b4435',
+          price: 16.5,
+          availability: 'AVAILABLE'
+        },
+        {
+          name: 'Truffle Fettuccine',
+          image: 'https://images.unsplash.com/photo-1525755662778-989d0524087e',
+          price: 21.0,
+          availability: 'AVAILABLE'
+        },
+        {
+          name: 'Tiramisu',
+          image: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0',
+          price: 8.5,
+          availability: 'UNAVAILABLE'
+        }
+      ]
+    },
+    {
+      id: "2",
+      name: "Sushi Zen",
+      image: "https://images.unsplash.com/photo-1553621042-f6e147245754",
+      streetAddress: "500 Pine Street, Seattle, WA 98101",
+      phoneNumbers: ['2065550142'],
+      contactPerson: "Akira Tanaka",
+      email: "akira@sushizen.com",
+      openingHours: [
+        { day: 'Monday', open: '11:30', close: '21:30', closed: false },
+        { day: 'Tuesday', open: '11:30', close: '21:30', closed: false },
+        { day: 'Wednesday', open: '11:30', close: '21:30', closed: false },
+        { day: 'Thursday', open: '11:30', close: '22:00', closed: false },
+        { day: 'Friday', open: '11:30', close: '22:30', closed: false },
+        { day: 'Saturday', open: '12:00', close: '22:30', closed: false },
+        { day: 'Sunday', open: '12:00', close: '21:00', closed: false }
+      ],
+      menu: [
+        {
+          name: 'Cherry Blossom Roll',
+          image: 'https://images.unsplash.com/photo-1553621042-f6e147245754',
+          price: 14.0,
+          availability: 'AVAILABLE'
+        },
+        {
+          name: 'Salmon Nigiri',
+          image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
+          price: 4.5,
+          availability: 'AVAILABLE'
+        },
+        {
+          name: 'Matcha Cheesecake',
+          image: 'https://images.unsplash.com/photo-1551024601-bec78aea704b',
+          price: 7.5,
+          availability: 'UNAVAILABLE'
+        }
+      ]
+    }
   ]);
 
   const [staffMembers, setStaffMembers] = useState([
@@ -234,28 +345,93 @@ export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
                     {pendingRestaurants.length === 0 ? (
                       <p className="text-muted-foreground">No pending requests</p>
                     ) : (
-                      pendingRestaurants.map(restaurant => (
-                        <div key={restaurant.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                          <div>
-                            <h3 className="font-medium">{restaurant.name}</h3>
-                            <p className="text-sm text-muted-foreground">Contact: {restaurant.contactPerson}</p>
-                            <p className="text-sm text-muted-foreground">Email: {restaurant.email}</p>
+                      pendingRestaurants.map((restaurant) => (
+                        <div key={restaurant.id} className="space-y-4 p-4 border border-border rounded-lg">
+                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                            <div className="flex items-start gap-4">
+                              {restaurant.image ? (
+                                <img
+                                  src={restaurant.image}
+                                  alt={`${restaurant.name} restaurant`}
+                                  className="h-16 w-16 rounded-md object-cover border flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="h-16 w-16 rounded-md border border-dashed flex-shrink-0 flex items-center justify-center text-xs text-muted-foreground">
+                                  No Image
+                                </div>
+                              )}
+                              <div className="space-y-1">
+                                <h3 className="text-lg font-semibold">{restaurant.name}</h3>
+                                <p className="text-sm text-muted-foreground">Contact Person: {restaurant.contactPerson}</p>
+                                <p className="text-sm text-muted-foreground">Email: {restaurant.email}</p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => approveRestaurant(restaurant.id)}
+                                className="bg-green-600 hover:bg-green-700 text-white"
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => rejectRestaurant(restaurant.id)}
+                              >
+                                Reject
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              onClick={() => approveRestaurant(restaurant.id)}
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                            >
-                              Approve
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              variant="destructive"
-                              onClick={() => rejectRestaurant(restaurant.id)}
-                            >
-                              Reject
-                            </Button>
+
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Street Address</Label>
+                              <p className="text-sm text-muted-foreground">{restaurant.streetAddress}</p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Phone Numbers</Label>
+                              <div className="flex flex-wrap gap-2">
+                                {restaurant.phoneNumbers.map((phone) => (
+                                  <Badge key={phone} variant="outline">{phone}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Opening Hours</Label>
+                              <div className="space-y-1">
+                                {restaurant.openingHours.map((hour) => (
+                                  <p key={`${restaurant.id}-${hour.day}`} className="text-sm text-muted-foreground">
+                                    <span className="font-medium text-foreground">{hour.day}: </span>
+                                    {hour.closed ? 'Closed' : `${formatTime(hour.open)} - ${formatTime(hour.close)}`}
+                                  </p>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm font-medium">Menu Items</Label>
+                              <div className="space-y-2">
+                                {restaurant.menu.map((item) => (
+                                  <div key={item.name} className="flex items-center gap-3 rounded border border-dashed border-border p-2">
+                                    {item.image ? (
+                                      <img
+                                        src={item.image}
+                                        alt={`${item.name} dish`}
+                                        className="h-12 w-12 rounded object-cover border"
+                                      />
+                                    ) : (
+                                      <div className="h-12 w-12 rounded border border-dashed flex items-center justify-center text-[10px] text-muted-foreground">
+                                        No Image
+                                      </div>
+                                    )}
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium">{item.name}</p>
+                                      <p className="text-xs text-muted-foreground">${item.price.toFixed(2)} - {item.availability}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ))
