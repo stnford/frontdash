@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -9,6 +9,8 @@ import { toast } from "sonner@2.0.3";
 
 interface AdminDashboardProps {
   onNavigateToLanding: () => void;
+  incomingRequests: RestaurantApplication[];
+  onConsumeIncomingRequests: () => void;
 }
 
 interface RestaurantMenuItem {
@@ -25,7 +27,14 @@ interface RestaurantOpeningHour {
   closed: boolean;
 }
 
-interface RestaurantApplication {
+interface ActiveRestaurantSummary {
+  id: string;
+  name: string;
+  cuisine: string;
+  status: 'online' | 'offline';
+}
+
+export interface RestaurantApplication {
   id: string;
   name: string;
   image?: string;
@@ -48,7 +57,7 @@ function formatTime(time: string) {
   return `${hours}:${minutes} ${period}`;
 }
 
-export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
+export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsumeIncomingRequests }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'restaurants' | 'staff' | 'drivers'>('overview');
   
   const [pendingRestaurants, setPendingRestaurants] = useState<RestaurantApplication[]>([
@@ -130,6 +139,32 @@ export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
     }
   ]);
 
+
+  useEffect(() => {
+    if (incomingRequests.length === 0) {
+      return;
+    }
+
+    setPendingRestaurants(prev => {
+      const existingIds = new Set(prev.map(r => r.id));
+      const additions = incomingRequests.filter(req => !existingIds.has(req.id));
+      if (additions.length === 0) {
+        return prev;
+      }
+
+      onConsumeIncomingRequests();
+      return [...additions, ...prev];
+    });
+  }, [incomingRequests, onConsumeIncomingRequests]);
+
+
+  const [activeRestaurants] = useState<ActiveRestaurantSummary[]>([
+    { id: "101", name: "Sunset Grill", cuisine: "American", status: 'online' },
+    { id: "102", name: "Luna Sushi", cuisine: "Japanese", status: 'online' },
+    { id: "103", name: "Spice Route", cuisine: "Indian", status: 'offline' },
+    { id: "104", name: "Garden Fresh", cuisine: "Vegan", status: 'online' }
+  ]);
+
   const [staffMembers, setStaffMembers] = useState([
     { id: "1", name: "John Smith", username: "smith01", role: "staff", status: "active" },
     { id: "2", name: "Sarah Johnson", username: "johnson02", role: "staff", status: "active" }
@@ -141,7 +176,8 @@ export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
     { id: "3", name: "David Lee", status: "available" }
   ]);
 
-  const [newStaffForm, setNewStaffForm] = useState({ fullName: "", username: "", password: "" });
+  const [newStaffForm, setNewStaffForm] = useState({ firstName: "", lastName: "", username: "", password: "" });
+  const [staffNameError, setStaffNameError] = useState("");
   const [newDriverForm, setNewDriverForm] = useState({ name: "" });
   const [driverNameError, setDriverNameError] = useState("");
 
@@ -161,28 +197,48 @@ export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
   };
 
   const addStaff = () => {
-    if (!newStaffForm.fullName || newStaffForm.fullName.length < 2) {
-      toast.error("Full name must be at least 2 characters");
+    const trimmedFirstName = newStaffForm.firstName.trim();
+    const trimmedLastName = newStaffForm.lastName.trim();
+
+    if (!trimmedFirstName || !trimmedLastName) {
+      toast.error("First and last name are required");
       return;
     }
 
-    const lastName = newStaffForm.fullName.split(' ').pop()?.toLowerCase() || '';
+    if (trimmedFirstName.length < 2 || trimmedLastName.length < 2) {
+      toast.error("Names must be at least 2 characters");
+      return;
+    }
+
+    const fullName = `${trimmedFirstName} ${trimmedLastName}`.trim();
+
+    const isDuplicate = staffMembers.some(
+      staff => staff.name.trim().toLowerCase() === fullName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      setStaffNameError("Name is not unique. Try again.");
+      return;
+    }
+
+    const lastNameToken = trimmedLastName.split(' ').pop()?.toLowerCase() || trimmedFirstName.toLowerCase();
     const randomDigits = Math.floor(10 + Math.random() * 90).toString();
-    const username = lastName + randomDigits;
-    const password = Math.random().toString(36).substr(2, 8) + 'A1';
+    const username = lastNameToken + randomDigits;
 
     const newStaff = {
       id: Date.now().toString(),
-      name: newStaffForm.fullName,
+      name: fullName,
       username,
       role: "staff",
       status: "active"
     };
 
     setStaffMembers(prev => [...prev, newStaff]);
-    setNewStaffForm({ fullName: "", username: "", password: "" });
-    toast.success(`Staff added! Username: ${username}, Password: ${password}`);
+    setNewStaffForm({ firstName: "", lastName: "", username: "", password: "" });
+    setStaffNameError("");
+    toast.success("Staff Member successfully added to system.");
   };
+
 
   const deleteStaff = (id: string) => {
     const staff = staffMembers.find(s => s.id === id);
@@ -309,7 +365,7 @@ export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
                     <CardTitle className="text-sm font-medium">Active Restaurants</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">6</div>
+                    <div className="text-2xl font-bold">{activeRestaurants.filter(restaurant => restaurant.status === 'online').length}</div>
                   </CardContent>
                 </Card>
                 
@@ -340,6 +396,37 @@ export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
                   </CardContent>
                 </Card>
               </div>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-semibold">Active Restaurants Snapshot</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {activeRestaurants.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No active restaurants online</p>
+                  ) : (
+                    activeRestaurants.map((restaurant) => (
+                      <div
+                        key={restaurant.id}
+                        className="flex flex-col gap-3 rounded-lg border border-border p-4 md:flex-row md:items-center md:justify-between"
+                      >
+                        <div>
+                          <h3 className="text-base font-semibold">{restaurant.name}</h3>
+                          <p className="text-sm text-muted-foreground">{restaurant.cuisine}</p>
+                        </div>
+                        <div className="flex flex-col items-start gap-3 text-sm md:flex-row md:items-center md:gap-4">
+                          <Badge variant={restaurant.status === 'online' ? 'default' : 'secondary'} className="capitalize">
+                            {restaurant.status === 'online' ? 'Online' : 'Offline'}
+                          </Badge>
+                          <span className="text-muted-foreground">
+                            {restaurant.status === 'online' ? 'Accepting orders' : 'Temporarily paused'}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+
             </div>
           )}
 
@@ -462,14 +549,41 @@ export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
                   <CardTitle>Add New Staff Member</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label>Full Name (must be unique)</Label>
-                    <Input 
-                      value={newStaffForm.fullName}
-                      onChange={(e) => setNewStaffForm(prev => ({ ...prev, fullName: e.target.value }))}
-                      placeholder="John Smith"
-                    />
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="staff-first-name">First Name</Label>
+                      <Input
+                        id="staff-first-name"
+                        value={newStaffForm.firstName}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setNewStaffForm(prev => ({ ...prev, firstName: value }));
+                          if (staffNameError) {
+                            setStaffNameError("");
+                          }
+                        }}
+                        placeholder="John"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="staff-last-name">Last Name</Label>
+                      <Input
+                        id="staff-last-name"
+                        value={newStaffForm.lastName}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setNewStaffForm(prev => ({ ...prev, lastName: value }));
+                          if (staffNameError) {
+                            setStaffNameError("");
+                          }
+                        }}
+                        placeholder="Smith"
+                      />
+                    </div>
                   </div>
+                  {staffNameError && (
+                    <p className="text-sm text-red-500">{staffNameError}</p>
+                  )}
                   <Button onClick={addStaff}>
                     <UserPlus className="w-4 h-4 mr-2" />
                     Add Staff Member
@@ -573,3 +687,19 @@ export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

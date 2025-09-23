@@ -141,29 +141,17 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
                   <CardTitle>Delivery Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="buildingNumber">Building Number *</Label>
-                      <Input
-                        id="buildingNumber"
-                        value={deliveryForm.buildingNumber}
-                        onChange={(e) => setDeliveryForm(prev => ({ ...prev, buildingNumber: e.target.value }))}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="streetName">Street Name *</Label>
-                      <Input
-                        id="streetName"
-                        value={deliveryForm.streetName}
-                        onChange={(e) => setDeliveryForm(prev => ({ ...prev, streetName: e.target.value }))}
-                        required
-                      />
-                    </div>
+                  <div>
+                    <Label htmlFor="apartmentNumber">Address Line 1</Label>
+                    <Input
+                      id="apartmentNumber"
+                      value={deliveryForm.apartmentNumber}
+                      onChange={(e) => setDeliveryForm(prev => ({ ...prev, apartmentNumber: e.target.value }))}
+                    />
                   </div>
 
                   <div>
-                    <Label htmlFor="apartmentNumber">Apartment/Unit Number</Label>
+                    <Label htmlFor="apartmentNumber">Address Line 2</Label>
                     <Input
                       id="apartmentNumber"
                       value={deliveryForm.apartmentNumber}

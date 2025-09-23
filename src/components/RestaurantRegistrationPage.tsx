@@ -6,10 +6,11 @@ import { Textarea } from "./ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ArrowLeft, Upload, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner@2.0.3";
+import type { RestaurantApplication } from "./AdminDashboard";
 
 interface RestaurantRegistrationPageProps {
   onNavigateBack: () => void;
-  onNavigateToLanding: () => void;
+  onSubmitRegistration: (application: RestaurantApplication) => void;
 }
 
 interface MenuItem {
@@ -22,7 +23,7 @@ interface OpeningHours {
   [key: string]: { open: string; close: string; closed: boolean };
 }
 
-export function RestaurantRegistrationPage({ onNavigateBack, onNavigateToLanding }: RestaurantRegistrationPageProps) {
+export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistration }: RestaurantRegistrationPageProps) {
   const [formData, setFormData] = useState({
     name: "",
     streetAddress: "",
@@ -95,9 +96,28 @@ export function RestaurantRegistrationPage({ onNavigateBack, onNavigateToLanding
     // Simulate submission
     toast.success("Registration request submitted! You will receive login credentials via email once approved by FrontDash.");
     
-    setTimeout(() => {
-      onNavigateToLanding();
-    }, 2000);
+    const application: RestaurantApplication = {
+      id: Date.now().toString(),
+      name: formData.name.trim(),
+      streetAddress: formData.streetAddress.trim(),
+      phoneNumbers: [formData.phone],
+      contactPerson: formData.contactPerson.trim(),
+      email: formData.email.trim(),
+      openingHours: Object.entries(openingHours).map(([day, hours]) => ({
+        day,
+        open: hours.open,
+        close: hours.close,
+        closed: hours.closed
+      })),
+      menu: validMenuItems.map(item => ({
+        name: item.name.trim(),
+        image: "",
+        price: parseFloat(item.price) || 0,
+        availability: item.availability
+      }))
+    };
+
+    onSubmitRegistration(application);
   };
 
   return (
@@ -311,3 +331,4 @@ export function RestaurantRegistrationPage({ onNavigateBack, onNavigateToLanding
     </div>
   );
 }
+
