@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -9,6 +9,8 @@ import { toast } from "sonner@2.0.3";
 
 interface AdminDashboardProps {
   onNavigateToLanding: () => void;
+  incomingRequests: RestaurantApplication[];
+  onConsumeIncomingRequests: () => void;
 }
 
 interface RestaurantMenuItem {
@@ -25,7 +27,7 @@ interface RestaurantOpeningHour {
   closed: boolean;
 }
 
-interface RestaurantApplication {
+export interface RestaurantApplication {
   id: string;
   name: string;
   image?: string;
@@ -48,7 +50,7 @@ function formatTime(time: string) {
   return `${hours}:${minutes} ${period}`;
 }
 
-export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
+export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsumeIncomingRequests }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'restaurants' | 'staff' | 'drivers'>('overview');
   
   const [pendingRestaurants, setPendingRestaurants] = useState<RestaurantApplication[]>([
@@ -129,6 +131,24 @@ export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
       ]
     }
   ]);
+
+
+  useEffect(() => {
+    if (incomingRequests.length === 0) {
+      return;
+    }
+
+    setPendingRestaurants(prev => {
+      const existingIds = new Set(prev.map(r => r.id));
+      const additions = incomingRequests.filter(req => !existingIds.has(req.id));
+      if (additions.length === 0) {
+        return prev;
+      }
+
+      onConsumeIncomingRequests();
+      return [...additions, ...prev];
+    });
+  }, [incomingRequests, onConsumeIncomingRequests]);
 
   const [staffMembers, setStaffMembers] = useState([
     { id: "1", name: "John Smith", username: "smith01", role: "staff", status: "active" },
@@ -573,3 +593,4 @@ export function AdminDashboard({ onNavigateToLanding }: AdminDashboardProps) {
     </div>
   );
 }
+
