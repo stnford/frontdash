@@ -49,7 +49,7 @@ export function OrderConfirmationPage({ orderDetails, onNavigateToLanding }: Ord
                 <h2 className="text-xl font-bold text-foreground mb-2">Order Number</h2>
                 <p className="text-3xl font-bold text-primary">{orderDetails.orderNumber}</p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Estimated delivery: {orderDetails.estimatedDelivery}
+                  
                 </p>
               </CardContent>
             </Card>
