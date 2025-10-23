@@ -248,7 +248,7 @@ export default function App() {
     case 'staff-login':
       return (
         <LoginForm 
-          title="Restaurant Staff Login"
+          title="FrontDash Staff Login"
           userType="staff"
           onNavigateBack={navigateToSignIn}
           onLoginSuccess={navigateToStaffDashboard}

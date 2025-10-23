@@ -173,7 +173,7 @@ export function StaffDashboard({ onNavigateToLanding }: StaffDashboardProps) {
             </Button>
             <div>
               <h1 className="text-xl font-bold text-white">Staff Dashboard</h1>
-              <p className="text-white/80">Tony's Pizza Palace - Staff Member</p>
+
             </div>
           </div>
           <Button 

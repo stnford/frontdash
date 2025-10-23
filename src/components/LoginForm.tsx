@@ -38,7 +38,7 @@ export function LoginForm({ title, userType, onNavigateBack, onLoginSuccess }: L
       case 'admin':
         return 'Access FrontDash admin panel to manage restaurants, staff, and drivers';
       case 'staff':
-        return 'Access your restaurant staff panel to manage orders and operations';
+        return 'Access the FrontDash staff panel to manage orders and operations';
       default:
         return '';
     }
