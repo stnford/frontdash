@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { ChangeEvent, useRef, useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -36,6 +36,10 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
     { name: "", price: "", availability: 'AVAILABLE' as const }
   ]);
 
+  const [restaurantImage, setRestaurantImage] = useState<string | null>(null);
+  const [restaurantImageName, setRestaurantImageName] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [openingHours, setOpeningHours] = useState<OpeningHours>({
     Monday: { open: "09:00", close: "22:00", closed: false },
     Tuesday: { open: "09:00", close: "22:00", closed: false },
@@ -65,6 +69,35 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
       ...prev,
       [day]: { ...prev[day], [field]: value }
     }));
+  };
+
+  const handleImageSelection = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      setRestaurantImage(null);
+      setRestaurantImageName("");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setRestaurantImage(reader.result);
+        setRestaurantImageName(file.name);
+      }
+    };
+    reader.onerror = () => {
+      toast.error("We couldn't read that file. Please try again with a different image.");
+      setRestaurantImage(null);
+      setRestaurantImageName("");
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const openImagePicker = () => {
+    fileInputRef.current?.click();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -99,6 +132,7 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
     const application: RestaurantApplication = {
       id: Date.now().toString(),
       name: formData.name.trim(),
+      image: restaurantImage ?? undefined,
       streetAddress: formData.streetAddress.trim(),
       phoneNumbers: [formData.phone],
       contactPerson: formData.contactPerson.trim(),
@@ -205,10 +239,55 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
 
                 <div>
                   <Label htmlFor="picture">Restaurant Picture (optional)</Label>
-                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                    <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
-                    <Input id="picture" type="file" className="hidden" accept="image/*" />
+                  <div
+                    className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2"
+                    onClick={openImagePicker}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openImagePicker();
+                      }
+                    }}
+                  >
+                    {restaurantImage ? (
+                      <div className="space-y-2">
+                        <img
+                          src={restaurantImage}
+                          alt="Selected restaurant"
+                          className="mx-auto h-32 w-full object-cover rounded-md"
+                        />
+                        <p className="text-sm font-medium text-foreground truncate">{restaurantImageName}</p>
+                        <p className="text-xs text-muted-foreground">Click to choose a different image</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                      </div>
+                    )}
+                    <div className="mt-4 flex justify-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openImagePicker();
+                        }}
+                      >
+                        Choose Image
+                      </Button>
+                    </div>
+                    <input
+                      id="picture"
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleImageSelection}
+                    />
                   </div>
                 </div>
               </CardContent>
