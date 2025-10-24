@@ -17,4 +17,8 @@
   
   Run `npm install react react-dom` to add React and ReactDOM as dependencies
   Run `npm install -D @types/react @types/react-dom` to install type definitions.
+
+  # note:
+
+  Be sure to check the README.md file in the db folder when working with backend
   

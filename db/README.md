@@ -1,6 +1,7 @@
 How to connect Docker and mySQL workbench
 
 - Install Docker Desktop: https://www.docker.com/get-started
+- Install mySQL Workbench: https://www.mysql.com/products/workbench/
 - cd into db
 - start database: docker compose up (do sudo if needed)
 
