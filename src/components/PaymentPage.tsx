@@ -38,9 +38,8 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
   });
 
   const [deliveryForm, setDeliveryForm] = useState({
-    buildingNumber: "",
-    streetName: "",
-    apartmentNumber: "",
+    addressLine1: "",
+    addressLine2: "",
     city: "",
     state: "",
     contactName: "",
@@ -107,7 +106,7 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
       serviceCharge,
       tips: tipAmount,
       grandTotal,
-      deliveryAddress: `${deliveryForm.buildingNumber} ${deliveryForm.streetName}, ${deliveryForm.apartmentNumber ? deliveryForm.apartmentNumber + ', ' : ''}${deliveryForm.city}, ${deliveryForm.state}`,
+      deliveryAddress: `${deliveryForm.addressLine1}${deliveryForm.addressLine2 ? ', ' + deliveryForm.addressLine2 : ''}, ${deliveryForm.city}, ${deliveryForm.state}`,
       contactName: deliveryForm.contactName,
       contactPhone: deliveryForm.contactPhone,
       estimatedDelivery: new Date(Date.now() + 45 * 60000).toLocaleTimeString() // 45 minutes from now
@@ -142,20 +141,20 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="apartmentNumber">Address Line 1</Label>
+                    <Label htmlFor="addressLine1">Address Line 1</Label>
                     <Input
-                      id="apartmentNumber"
-                      value={deliveryForm.apartmentNumber}
-                      onChange={(e) => setDeliveryForm(prev => ({ ...prev, apartmentNumber: e.target.value }))}
+                      id="addressLine1"
+                      value={deliveryForm.addressLine1}
+                      onChange={(e) => setDeliveryForm(prev => ({ ...prev, addressLine1: e.target.value }))}
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="apartmentNumber">Address Line 2</Label>
+                    <Label htmlFor="addressLine2">Address Line 2</Label>
                     <Input
-                      id="apartmentNumber"
-                      value={deliveryForm.apartmentNumber}
-                      onChange={(e) => setDeliveryForm(prev => ({ ...prev, apartmentNumber: e.target.value }))}
+                      id="addressLine2"
+                      value={deliveryForm.addressLine2}
+                      onChange={(e) => setDeliveryForm(prev => ({ ...prev, addressLine2: e.target.value }))}
                     />
                   </div>
 
