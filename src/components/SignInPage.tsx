@@ -71,7 +71,7 @@ export function SignInPage({
               </Button>
             </div>
 
-            {/* FrontDash Admin and Restaurant Staff */}
+            {/* FrontDash Admin and Staff */}
             <div className="space-y-3">
               <Button 
                 size="lg" 
@@ -85,7 +85,7 @@ export function SignInPage({
                 onClick={onNavigateToStaffLogin}
                 className="w-full bg-accent hover:bg-accent/90 text-accent-foreground py-6 text-lg font-bold"
               >
-                RESTAURANT STAFF LOGIN
+                FRONTDASH STAFF LOGIN
               </Button>
             </div>
           </div>

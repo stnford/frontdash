@@ -16,3 +16,17 @@ yarn-error.log*
 
 # system files
 .DS_Store
+
+# backend build and cache
+backend/target/
+backend/.mvn/
+backend/.m2/
+
+# virtual envs and tooling
+.venv/
+.idea/
+.vscode/
+
+# env files
+.env
+.env.local

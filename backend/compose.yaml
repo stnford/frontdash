@@ -1,0 +1,10 @@
+services:
+  mysql:
+    image: 'mysql:latest'
+    environment:
+      - 'MYSQL_DATABASE=frontdash'
+      - 'MYSQL_USER=frontdash'
+      - 'MYSQL_PASSWORD=frontdashpw'
+      - 'MYSQL_ROOT_PASSWORD=verysecret'
+    ports:
+      - '3307:3306'

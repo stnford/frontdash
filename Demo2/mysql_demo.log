@@ -1,0 +1,221 @@
+mysql> source /Users/luke/Demo2/01_procedures.sql;
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.005 sec)
+
+Query OK, 0 rows affected (0.002 sec)
+
+Query OK, 0 rows affected (0.002 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.003 sec)
+
+Query OK, 0 rows affected (0.002 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.002 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.007 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+mysql> source /Users/luke/Demo2/02_seed_clean.sql;
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.001 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 1 row affected (0.001 sec)
+
+Query OK, 2 rows affected (0.001 sec)
+
+Query OK, 2 rows affected (0.001 sec)
+
+Query OK, 1 row affected (0.000 sec)
+
+Query OK, 1 row affected (0.000 sec)
+
+Query OK, 1 row affected (0.000 sec)
+
+Query OK, 1 row affected (0.000 sec)
+
+Query OK, 1 row affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 1 row affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 1 row affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 2 rows affected (0.000 sec)
+Records: 2  Duplicates: 0  Warnings: 0
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 2 rows affected (0.000 sec)
+Records: 2  Duplicates: 0  Warnings: 0
+
+Query OK, 0 rows affected (0.000 sec)
+
+Query OK, 1 row affected (0.000 sec)
+
+Query OK, 1 row affected (0.000 sec)
+
+Query OK, 1 row affected (0.000 sec)
+
+Query OK, 0 rows affected (0.000 sec)
+
++--------------+
+| section      |
++--------------+
+| START Orders |
++--------------+
+1 row in set (0.000 sec)
+
+Empty set (0.000 sec)
+
++-------------+
+| section     |
++-------------+
+| START Items |
++-------------+
+1 row in set (0.000 sec)
+
+Empty set (0.000 sec)
+
++------------+
+| section    |
++------------+
+| START Addr |
++------------+
+1 row in set (0.000 sec)
+
+Empty set (0.000 sec)
+
++-------------+
+| section     |
++-------------+
+| START Staff |
++-------------+
+1 row in set (0.000 sec)
+
++----------+-----------+----------+-------------------+
+| username | firstName | lastName | employementStatus |
++----------+-----------+----------+-------------------+
+| jim      | JimBob    | Jones    | Active            |
++----------+-----------+----------+-------------------+
+1 row in set (0.000 sec)
+
+mysql> clear
+mysql> system clear
+ERROR: 
+'system' command received, but the --system-command option is off. Skipping.
+mysql> system clear;
+ERROR: 
+'system' command received, but the --system-command option is off. Skipping.
+mysql> \! clear
+ERROR: 
+'system' command received, but the --system-command option is off. Skipping.
+mysql> \! clear
+ERROR: 
+'system' command received, but the --system-command option is off. Skipping.
+mysql> exit

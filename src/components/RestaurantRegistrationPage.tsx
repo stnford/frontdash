@@ -1,5 +1,4 @@
-import { useState } from "react";
-import React from "react";
+import { ChangeEvent, useRef, useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -8,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ArrowLeft, Upload, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { RestaurantApplication } from "./AdminDashboard";
+import { api } from "../lib/api";
 
 interface RestaurantRegistrationPageProps {
   onNavigateBack: () => void;
@@ -34,6 +34,9 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
   const [formData, setFormData] = useState({
     name: "",
     streetAddress: "",
+    city: "",
+    state: "",
+    zip: "",
     phone: "",
     contactPerson: "",
     email: ""
@@ -42,6 +45,10 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
   const [menuItems, setMenuItems] = useState<MenuItem[]>([
     { name: "", price: "", availability: 'AVAILABLE' as const }
   ]);
+
+  const [restaurantImage, setRestaurantImage] = useState<string | null>(null);
+  const [restaurantImageName, setRestaurantImageName] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [openingHours, setOpeningHours] = useState<OpeningHours>({
     Monday: { open: "09:00", close: "22:00", closed: false },
@@ -78,6 +85,35 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
     }));
   };
 
+  const handleImageSelection = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      setRestaurantImage(null);
+      setRestaurantImageName("");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setRestaurantImage(reader.result);
+        setRestaurantImageName(file.name);
+      }
+    };
+    reader.onerror = () => {
+      toast.error("We couldn't read that file. Please try again with a different image.");
+      setRestaurantImage(null);
+      setRestaurantImageName("");
+    };
+
+    reader.readAsDataURL(file);
+  };
+
+  const openImagePicker = () => {
+    fileInputRef.current?.click();
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -105,31 +141,50 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
     }
 
     // Simulate submission
-    toast.success("Registration request submitted! You will receive login credentials via email once approved by FrontDash.");
-    
-    const application: RestaurantApplication = {
-      id: Date.now().toString(),
-      name: formData.name.trim(),
-      streetAddress: formData.streetAddress.trim(),
-      phoneNumbers: [formData.phone],
-      contactPerson: formData.contactPerson.trim(),
-      email: formData.email.trim(),
-      openingHours: (Object.entries(openingHours) as [Day, DayHours][])
-        .map(([day, hours]) => ({
-          day,
-          open: hours.open,
-          close: hours.close,
-          closed: hours.closed
-        })),
-      menu: validMenuItems.map(item => ({
-        name: item.name.trim(),
-        image: "",
-        price: parseFloat(item.price) || 0,
-        availability: item.availability
-      }))
+    const doSubmit = async () => {
+      try {
+        await api.registerRestaurant({
+          restName: formData.name.trim(),
+          streetAddress1: formData.streetAddress.trim(),
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          zip: formData.zip.trim(),
+          contactName: formData.contactPerson.trim(),
+          contactEmail: formData.email.trim(),
+          contactPhone: formData.phone.trim()
+        });
+
+        toast.success("Registration request submitted! You will receive login credentials via email once approved.");
+        
+        const application: RestaurantApplication = {
+          id: Date.now().toString(),
+          name: formData.name.trim(),
+          image: restaurantImage ?? undefined,
+          streetAddress: formData.streetAddress.trim(),
+          phoneNumbers: [formData.phone],
+          contactPerson: formData.contactPerson.trim(),
+          email: formData.email.trim(),
+          openingHours: Object.entries(openingHours).map(([day, hours]) => ({
+            day,
+            open: hours.open,
+            close: hours.close,
+            closed: hours.closed
+          })),
+          menu: validMenuItems.map(item => ({
+            name: item.name.trim(),
+            image: "",
+            price: parseFloat(item.price) || 0,
+            availability: item.availability
+          }))
+        };
+
+        onSubmitRegistration(application);
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to submit registration");
+      }
     };
 
-    onSubmitRegistration(application);
+    void doSubmit();
   };
 
   return (
@@ -177,6 +232,32 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
                     required
                   />
                 </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      value={formData.city}
+                      onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State</Label>
+                    <Input
+                      id="state"
+                      value={formData.state}
+                      onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="zip">ZIP</Label>
+                    <Input
+                      id="zip"
+                      value={formData.zip}
+                      onChange={(e) => setFormData(prev => ({ ...prev, zip: e.target.value }))}
+                    />
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -217,10 +298,55 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
 
                 <div>
                   <Label htmlFor="picture">Restaurant Picture (optional)</Label>
-                  <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                    <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
-                    <Input id="picture" type="file" className="hidden" accept="image/*" />
+                  <div
+                    className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2"
+                    onClick={openImagePicker}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openImagePicker();
+                      }
+                    }}
+                  >
+                    {restaurantImage ? (
+                      <div className="space-y-2">
+                        <img
+                          src={restaurantImage}
+                          alt="Selected restaurant"
+                          className="mx-auto h-32 w-full object-cover rounded-md"
+                        />
+                        <p className="text-sm font-medium text-foreground truncate">{restaurantImageName}</p>
+                        <p className="text-xs text-muted-foreground">Click to choose a different image</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                      </div>
+                    )}
+                    <div className="mt-4 flex justify-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openImagePicker();
+                        }}
+                      >
+                        Choose Image
+                      </Button>
+                    </div>
+                    <input
+                      id="picture"
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleImageSelection}
+                    />
                   </div>
                 </div>
               </CardContent>

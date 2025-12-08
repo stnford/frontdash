@@ -9,7 +9,7 @@ interface OrderConfirmationPageProps {
     restaurantName: string;
     orderDate: string;
     items: Array<{
-      id: string;
+      id: string | number;
       name: string;
       price: number;
       quantity: number;

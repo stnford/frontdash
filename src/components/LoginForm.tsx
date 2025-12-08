@@ -5,12 +5,13 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ArrowLeft } from "lucide-react";
+import { api } from "../lib/api";
 
 interface LoginFormProps {
   title: string;
   userType: 'restaurant' | 'admin' | 'staff';
   onNavigateBack: () => void;
-  onLoginSuccess: () => void;
+  onLoginSuccess: (username: string) => void;
 }
 
 export function LoginForm({ title, userType, onNavigateBack, onLoginSuccess }: LoginFormProps) {
@@ -28,8 +29,21 @@ export function LoginForm({ title, userType, onNavigateBack, onLoginSuccess }: L
       return;
     }
 
-    // Accept any credentials and proceed to dashboard
-    onLoginSuccess();
+    const doLogin = async () => {
+      try {
+        if (userType === 'restaurant') {
+          await api.restaurantLogin(credentials.username, credentials.password);
+        } else {
+          // Admin reuses staff login for now
+          await api.staffLogin(credentials.username, credentials.password);
+        }
+        onLoginSuccess(credentials.username);
+      } catch (err: any) {
+        alert(err?.message || "Login failed");
+      }
+    };
+
+    void doLogin();
   };
 
   const getDescription = () => {
@@ -39,7 +53,7 @@ export function LoginForm({ title, userType, onNavigateBack, onLoginSuccess }: L
       case 'admin':
         return 'Access FrontDash admin panel to manage restaurants, staff, and drivers';
       case 'staff':
-        return 'Access your restaurant staff panel to manage orders and operations';
+        return 'Access the FrontDash staff panel to manage orders and operations';
       default:
         return '';
     }

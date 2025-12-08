@@ -5,6 +5,7 @@ import { Separator } from "./ui/separator";
 
 interface CartItem {
   id: string;
+  itemId: number;
   name: string;
   price: number;
   quantity: number;
