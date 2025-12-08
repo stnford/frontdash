@@ -5,7 +5,7 @@ import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ArrowLeft, Upload, Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "sonner@2.0.3";
 import type { RestaurantApplication } from "./AdminDashboard";
 import { api } from "../lib/api";
 
@@ -20,15 +20,9 @@ interface MenuItem {
   availability: 'AVAILABLE' | 'UNAVAILABLE';
 }
 
-type Day = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
-
-type DayHours = {
-  open: string;
-  close: string;
-  closed: boolean;
-};
-
-type OpeningHours = Record<Day, DayHours>;
+interface OpeningHours {
+  [key: string]: { open: string; close: string; closed: boolean };
+}
 
 export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistration }: RestaurantRegistrationPageProps) {
   const [formData, setFormData] = useState({
@@ -74,11 +68,7 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
     setMenuItems(updated);
   };
 
-  const updateOpeningHours = <K extends keyof DayHours>(
-    day: Day,
-    field: K,
-    value: DayHours[K]
-  ) => {
+  const updateOpeningHours = (day: string, field: string, value: string | boolean) => {
     setOpeningHours(prev => ({
       ...prev,
       [day]: { ...prev[day], [field]: value }
@@ -358,8 +348,7 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
                 <CardTitle>Opening Hours</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {(Object.entries(openingHours) as [Day, DayHours][])
-                  .map(([day, hours]) => (
+                {Object.entries(openingHours).map(([day, hours]) => (
                   <div key={day} className="grid grid-cols-4 gap-4 items-center">
                     <Label className="font-medium">{day}</Label>
                     <div className="flex items-center gap-2">
