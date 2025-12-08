@@ -6,9 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { ArrowLeft, CreditCard } from "lucide-react";
 import { Separator } from "./ui/separator";
+import { api } from "../lib/api";
 
 interface CartItem {
   id: string;
+  itemId: number;
   name: string;
   price: number;
   quantity: number;
@@ -42,15 +44,32 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
     addressLine2: "",
     city: "",
     state: "",
+    zip: "",
     contactName: "",
     contactPhone: ""
   });
 
   const [showDeliveryForm, setShowDeliveryForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const serviceCharge = subtotal * 0.0825;
   const grandTotal = subtotal + serviceCharge + tipAmount;
+
+  const luhnCheck = (num: string) => {
+    let sum = 0;
+    let shouldDouble = false;
+    for (let i = num.length - 1; i >= 0; i--) {
+      let digit = parseInt(num.charAt(i), 10);
+      if (shouldDouble) {
+        digit *= 2;
+        if (digit > 9) digit -= 9;
+      }
+      sum += digit;
+      shouldDouble = !shouldDouble;
+    }
+    return sum % 10 === 0;
+  };
 
   const handleTipOptionSelect = (percentage: number) => {
     const calculatedTip = (subtotal * percentage) / 100;
@@ -72,47 +91,92 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Basic validation
-    if (!paymentForm.cardNumber || paymentForm.cardNumber.length !== 16) {
-      alert("Please enter a valid 16-digit card number");
+    const cleanedCard = paymentForm.cardNumber.replace(/\D/g, "");
+    if (cleanedCard.length !== 16) {
+      alert("Card declined: invalid card number");
       return;
     }
-    
-    if (!paymentForm.securityCode || paymentForm.securityCode.length !== 3) {
-      alert("Please enter a valid 3-digit security code");
+    if (!paymentForm.securityCode || paymentForm.securityCode.replace(/\D/g, "").length !== 3) {
+      alert("Card declined: invalid CVV");
+      return;
+    }
+    const month = Number(paymentForm.expiryMonth);
+    const year = Number(paymentForm.expiryYear);
+    if (!month || !year || month < 1 || month > 12) {
+      alert("Card declined: invalid expiration");
+      return;
+    }
+    const now = new Date();
+    const expDate = new Date(year, month, 0);
+    if (expDate < now) {
+      alert("Card declined: card expired");
       return;
     }
 
-    // Simulate payment processing
+    // Basic acceptance: no random issuer rejection, no arbitrary spend limit
+
     setShowDeliveryForm(true);
   };
 
-  const handleDeliverySubmit = (e: React.FormEvent) => {
+  const handleDeliverySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Basic validation
     if (!deliveryForm.contactPhone || deliveryForm.contactPhone.length !== 10) {
       alert("Please enter a valid 10-digit phone number");
       return;
     }
+    if (!cartItems.length) {
+      alert("Cart is empty");
+      return;
+    }
+    if (!deliveryForm.addressLine1 || !deliveryForm.city || !deliveryForm.state) {
+      alert("Please complete the delivery address.");
+      return;
+    }
 
-    // Generate order details
-    const orderDetails = {
-      orderNumber: Math.random().toString(36).substr(2, 9).toUpperCase(),
-      restaurantName: cartItems[0]?.restaurantName,
-      orderDate: new Date().toLocaleString(),
-      items: cartItems,
-      subtotal,
-      serviceCharge,
-      tips: tipAmount,
-      grandTotal,
-      deliveryAddress: `${deliveryForm.addressLine1}${deliveryForm.addressLine2 ? ', ' + deliveryForm.addressLine2 : ''}, ${deliveryForm.city}, ${deliveryForm.state}`,
-      contactName: deliveryForm.contactName,
-      contactPhone: deliveryForm.contactPhone,
-      estimatedDelivery: new Date(Date.now() + 45 * 60000).toLocaleTimeString() // 45 minutes from now
-    };
+    setIsSubmitting(true);
 
-    onNavigateToOrderConfirmation(orderDetails);
+    try {
+      const response = await api.createOrder({
+        restName: cartItems[0].restaurantName,
+        tipAmount,
+        items: cartItems.map(item => ({
+          itemId: item.itemId,
+          quantity: item.quantity
+        })),
+        delivery: {
+          streetAddress1: deliveryForm.addressLine1,
+          streetAddress2: deliveryForm.addressLine2,
+          city: deliveryForm.city,
+          state: deliveryForm.state,
+          zip: deliveryForm.zip,
+          contactName: deliveryForm.contactName,
+          contactPhone: deliveryForm.contactPhone
+        }
+      });
+
+      const orderDetails = {
+        orderNumber: String(response.orderNumber),
+        restaurantName: cartItems[0]?.restaurantName,
+        orderDate: new Date().toLocaleString(),
+        items: cartItems,
+        subtotal: response.subtotal,
+        serviceCharge: response.serviceCharge,
+        tips: response.tipAmount,
+        grandTotal: response.grandTotal,
+        deliveryAddress: `${deliveryForm.addressLine1}${deliveryForm.addressLine2 ? ', ' + deliveryForm.addressLine2 : ''}, ${deliveryForm.city}, ${deliveryForm.state}${deliveryForm.zip ? ' ' + deliveryForm.zip : ''}`,
+        contactName: deliveryForm.contactName,
+        contactPhone: deliveryForm.contactPhone,
+        estimatedDelivery: new Date(Date.now() + 45 * 60000).toLocaleTimeString()
+      };
+
+      onNavigateToOrderConfirmation(orderDetails);
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message || "Unable to place order. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (showDeliveryForm) {
@@ -180,6 +244,15 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
                   </div>
 
                   <div>
+                    <Label htmlFor="zip">Zip Code</Label>
+                    <Input
+                      id="zip"
+                      value={deliveryForm.zip}
+                      onChange={(e) => setDeliveryForm(prev => ({ ...prev, zip: e.target.value }))}
+                    />
+                  </div>
+
+                  <div>
                     <Label htmlFor="contactName">Contact Person Name *</Label>
                     <Input
                       id="contactName"
@@ -206,8 +279,8 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
                 </CardContent>
               </Card>
 
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 py-6 text-lg font-bold">
-                Complete Order
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 py-6 text-lg font-bold" disabled={isSubmitting}>
+                {isSubmitting ? "Placing order..." : "Complete Order"}
               </Button>
             </form>
           </div>

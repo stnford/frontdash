@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -6,11 +6,13 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { LogOut, Menu, Settings, Clock, Users, DollarSign, ArrowLeft, Plus, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner@2.0.3";
+import { api } from "../lib/api";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { DragDropImageUpload } from "./DragDropImageUpload";
 
 interface RestaurantDashboardProps {
   onNavigateToLanding: () => void;
+  initialRestaurantName?: string;
 }
 
 type OpeningHoursEntry = {
@@ -30,14 +32,11 @@ const defaultOpeningHours: OpeningHoursEntry[] = [
   { day: 'Sunday', open: '10:00', close: '21:00', closed: false },
 ];
 
-export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboardProps) {
+export function RestaurantDashboard({ onNavigateToLanding, initialRestaurantName }: RestaurantDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'menu' | 'hours' | 'settings'>('overview');
-  const [menuItems, setMenuItems] = useState([
-    { id: "1", name: "Margherita Pizza", price: 18.99, available: true, image: "https://images.unsplash.com/photo-1604068549290-dea0e4a305ca" },
-    { id: "2", name: "Pepperoni Pizza", price: 21.99, available: true, image: "https://images.unsplash.com/photo-1628840042765-356cda07504e" },
-    { id: "3", name: "Caesar Salad", price: 12.99, available: true, image: "https://images.unsplash.com/photo-1546793665-c74683f339c1" },
-    { id: "4", name: "Garlic Bread", price: 8.99, available: false, image: "https://images.unsplash.com/photo-1593527270723-834c53a3fed4" }
-  ]);
+  const [menuItems, setMenuItems] = useState<
+    { id: string; name: string; price: number; available: boolean; image: string }[]
+  >([]);
 
   const [newItemForm, setNewItemForm] = useState({
     name: "",
@@ -52,14 +51,95 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
     imageUrl: "",
     available: true
   });
-  const [restaurantName, setRestaurantName] = useState("Tony's Pizza Palace");
-  const [contactPerson, setContactPerson] = useState("Tony Rossi");
-  const [phoneNumber, setPhoneNumber] = useState("5551234567");
-  const [emailAddress, setEmailAddress] = useState("contact@tonyspizza.com");
+  const [restaurantName, setRestaurantName] = useState(initialRestaurantName || "All Chicken Meals");
+  const [contactPerson, setContactPerson] = useState("Laura Wimbleton");
+  const [phoneNumber, setPhoneNumber] = useState("6174783785");
+  const [emailAddress, setEmailAddress] = useState("allchicken@frontdash.test");
   const [accountUpdateMessage, setAccountUpdateMessage] = useState("");
   const [accountUpdateError, setAccountUpdateError] = useState("");
 
+  const [orders, setOrders] = useState<any[]>([]);
+  const [orderSummaries, setOrderSummaries] = useState<Record<number, any>>({});
+
   const [openingHours, setOpeningHours] = useState<OpeningHoursEntry[]>(defaultOpeningHours);
+
+  useEffect(() => {
+    if (initialRestaurantName) {
+      setRestaurantName(initialRestaurantName);
+    }
+  }, [initialRestaurantName]);
+
+  useEffect(() => {
+    const loadOrders = async () => {
+      try {
+        const all = await api.listOrders();
+        const byRest = (all as any[]).filter((o) => o.restName === restaurantName);
+        setOrders(byRest);
+        const summaries = await Promise.all(
+          byRest.map(async (o) => {
+            try {
+              const summary = await api.getOrderSummary(o.orderNumber);
+              return [o.orderNumber, summary] as const;
+            } catch {
+              return [o.orderNumber, null] as const;
+            }
+          })
+        );
+        const summaryMap: Record<number, any> = {};
+        for (const [num, summary] of summaries) {
+          if (summary) summaryMap[num] = summary;
+        }
+        setOrderSummaries(summaryMap);
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to load orders");
+      }
+    };
+    if (restaurantName) {
+      void loadOrders();
+    }
+  }, [restaurantName]);
+
+  const summary = useMemo(() => {
+    const revenue = orders.reduce((sum, o) => sum + Number(o.grandTotal || 0), 0);
+    return {
+      ordersCount: orders.length,
+      revenue: revenue.toFixed(2),
+      recent: orders.slice(0, 5)
+    };
+  }, [orders]);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [menu, hours] = await Promise.all([
+          api.getRestaurantMenu(restaurantName),
+          api.getRestaurantHours(restaurantName)
+        ]);
+
+        setMenuItems(
+          (menu as any[]).map((m) => ({
+            id: String(m.itemID),
+            name: m.itemName,
+            price: Number(m.itemPrice),
+            available: m.isAvailable === "Y",
+            image: getSampleFoodImage()
+          }))
+        );
+
+        if ((hours as any[]).length > 0) {
+          setOpeningHours((hours as any[]).map((h) => ({
+            day: h.dayOfWeek,
+            open: h.openTime?.slice(0,5) ?? "09:00",
+            close: h.closeTime?.slice(0,5) ?? "21:00",
+            closed: h.isClosed === "Y"
+          })));
+        }
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to load restaurant data");
+      }
+    };
+    void load();
+  }, [restaurantName]);
 
   const getSampleFoodImage = () => {
     const sampleImages = [
@@ -102,16 +182,56 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
     });
   };
 
+  const saveHours = () => {
+    const doSave = async () => {
+      try {
+        for (const entry of openingHours) {
+          await api.updateRestaurantHours({
+            restName: restaurantName,
+            dayOfWeek: entry.day as any,
+            openTime: entry.open + ":00",
+            closeTime: entry.close + ":00",
+            isClosed: entry.closed ? "Y" : "N"
+          });
+        }
+        toast.success("Hours updated");
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to update hours");
+      }
+    };
+    void doSave();
+  };
+
   const handleLogout = () => {
     toast.success("Logged out successfully");
     onNavigateToLanding();
   };
 
   const toggleItemAvailability = (id: string) => {
-    setMenuItems(prev => prev.map(item => 
-      item.id === id ? { ...item, available: !item.available } : item
-    ));
-    toast.success("Menu item updated");
+    const target = menuItems.find(item => item.id === id);
+    if (!target) return;
+    const nextAvailable = !target.available;
+
+    const doUpdate = async () => {
+      try {
+        await api.updateRestaurantMenuItem({
+          restName: restaurantName,
+          itemId: Number(id),
+          itemName: target.name,
+          itemDescription: "",
+          itemPrice: target.price,
+          isAvailable: nextAvailable ? "Y" : "N"
+        });
+        setMenuItems(prev => prev.map(item => 
+          item.id === id ? { ...item, available: nextAvailable } : item
+        ));
+        toast.success("Menu item updated");
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to update menu item");
+      }
+    };
+
+    void doUpdate();
   };
 
   const addMenuItem = () => {
@@ -125,17 +245,33 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
       return;
     }
 
-    const newItem = {
-      id: Date.now().toString(),
-      name: newItemForm.name.trim(),
-      price: Number(newItemForm.price),
-      image: newItemForm.imageUrl.trim() || "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b", // Default food image
-      available: newItemForm.available
+    const doCreate = async () => {
+      try {
+        const res = await api.createRestaurantMenuItem({
+          restName: restaurantName,
+          itemName: newItemForm.name.trim(),
+          itemDescription: "",
+          itemPrice: Number(newItemForm.price),
+          isAvailable: newItemForm.available ? "Y" : "N"
+        });
+
+        const newItem = {
+          id: String(res.itemId),
+          name: newItemForm.name.trim(),
+          price: Number(newItemForm.price),
+          image: newItemForm.imageUrl.trim() || "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b",
+          available: newItemForm.available
+        };
+
+        setMenuItems(prev => [...prev, newItem]);
+        setNewItemForm({ name: "", price: "", imageUrl: "", available: true });
+        toast.success("Menu item added successfully");
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to add menu item");
+      }
     };
 
-    setMenuItems(prev => [...prev, newItem]);
-    setNewItemForm({ name: "", price: "", imageUrl: "", available: true });
-    toast.success("Menu item added successfully");
+    void doCreate();
   };
 
   const startEditingMenuItem = (id: string) => {
@@ -177,20 +313,37 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
 
     const updatedImage = editingMenuItemForm.imageUrl.trim();
 
-    setMenuItems(prev => prev.map(item =>
-      item.id === editingMenuItemId
-        ? {
-            ...item,
-            name: trimmedName,
-            price: parsedPrice,
-            image: updatedImage || item.image,
-            available: editingMenuItemForm.available
-          }
-        : item
-    ));
+    const doUpdate = async () => {
+      try {
+        await api.updateRestaurantMenuItem({
+          restName: restaurantName,
+          itemId: Number(editingMenuItemId),
+          itemName: trimmedName,
+          itemDescription: "",
+          itemPrice: parsedPrice,
+          isAvailable: editingMenuItemForm.available ? "Y" : "N"
+        });
 
-    toast.success("Menu item updated successfully");
-    cancelEditingMenuItem();
+        setMenuItems(prev => prev.map(item =>
+          item.id === editingMenuItemId
+            ? {
+                ...item,
+                name: trimmedName,
+                price: parsedPrice,
+                image: updatedImage || item.image,
+                available: editingMenuItemForm.available
+              }
+            : item
+        ));
+
+        toast.success("Menu item updated successfully");
+        cancelEditingMenuItem();
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to update menu item");
+      }
+    };
+
+    void doUpdate();
   };
 
   const handleAccountSettingsUpdate = () => {
@@ -244,7 +397,7 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
             </Button>
             <div>
               <h1 className="text-xl font-bold text-white">Restaurant Dashboard</h1>
-              <p className="text-white/80">Tony's Pizza Palace</p>
+              <p className="text-white/80">{restaurantName}</p>
             </div>
           </div>
           <Button 
@@ -316,19 +469,19 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
                 
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Orders Today</CardTitle>
+                    <CardTitle className="text-sm font-medium">Orders (all)</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">24</div>
+                    <div className="text-2xl font-bold">{summary.ordersCount}</div>
                   </CardContent>
                 </Card>
                 
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Revenue Today</CardTitle>
+                    <CardTitle className="text-sm font-medium">Revenue (all)</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">$489.50</div>
+                    <div className="text-2xl font-bold">${summary.revenue}</div>
                   </CardContent>
                 </Card>
               </div>
@@ -338,22 +491,30 @@ export function RestaurantDashboard({ onNavigateToLanding }: RestaurantDashboard
                   <CardTitle>Recent Orders</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded">
-                      <div>
-                        <p className="font-medium">Order #FD123456</p>
-                        <p className="text-sm text-muted-foreground">2x Margherita Pizza, 1x Caesar Salad</p>
-                      </div>
-                      <Badge>Preparing</Badge>
+                  {summary.recent.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">No orders yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {summary.recent.map((order) => {
+                        const summaryForOrder = orderSummaries[order.orderNumber];
+                        const items = summaryForOrder?.items as any[] | undefined;
+                        const desc = items && items.length
+                          ? items.map((i) => `${i.itemName} x${i.quantity}`).join(", ")
+                          : "No items found";
+                        return (
+                          <div key={order.orderNumber} className="flex justify-between items-center p-3 bg-muted/50 rounded">
+                            <div>
+                              <p className="font-medium">Order #{order.orderNumber}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {desc}
+                              </p>
+                            </div>
+                            <Badge>{order.orderStatus || "Pending"}</Badge>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className="flex justify-between items-center p-3 bg-muted/50 rounded">
-                      <div>
-                        <p className="font-medium">Order #FD123457</p>
-                        <p className="text-sm text-muted-foreground">1x Pepperoni Pizza</p>
-                      </div>
-                      <Badge variant="secondary">Delivered</Badge>
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

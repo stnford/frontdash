@@ -6,6 +6,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { LogOut, Users, Building, Truck, UserPlus, UserMinus, ArrowLeft } from "lucide-react";
 import { toast } from "sonner@2.0.3";
+import { api } from "../lib/api";
 
 interface AdminDashboardProps {
   onNavigateToLanding: () => void;
@@ -30,7 +31,6 @@ interface RestaurantOpeningHour {
 interface ActiveRestaurantSummary {
   id: string;
   name: string;
-  cuisine: string;
   status: 'online' | 'offline';
 }
 
@@ -60,85 +60,19 @@ function formatTime(time: string) {
 export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsumeIncomingRequests }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'restaurants' | 'staff' | 'drivers'>('overview');
   
-  const [pendingRestaurants, setPendingRestaurants] = useState<RestaurantApplication[]>([
-    {
-      id: "1",
-      name: "Bella Italia",
-      image: "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f",
-      streetAddress: "1200 Market Street, San Francisco, CA 94102",
-      phoneNumbers: ['4155550198', '4155552874'],
-      contactPerson: "Marco Romano",
-      email: "marco@bellaitalia.com",
-      openingHours: [
-        { day: 'Monday', open: '10:00', close: '22:00', closed: false },
-        { day: 'Tuesday', open: '10:00', close: '22:00', closed: false },
-        { day: 'Wednesday', open: '10:00', close: '22:00', closed: false },
-        { day: 'Thursday', open: '10:00', close: '23:00', closed: false },
-        { day: 'Friday', open: '10:00', close: '23:30', closed: false },
-        { day: 'Saturday', open: '11:00', close: '23:30', closed: false },
-        { day: 'Sunday', open: '11:00', close: '21:00', closed: false }
-      ],
-      menu: [
-        {
-          name: 'Margherita Pizza',
-          image: 'https://images.unsplash.com/photo-1548365328-5b0b2d3b4435',
-          price: 16.5,
-          availability: 'AVAILABLE'
-        },
-        {
-          name: 'Truffle Fettuccine',
-          image: 'https://images.unsplash.com/photo-1525755662778-989d0524087e',
-          price: 21.0,
-          availability: 'AVAILABLE'
-        },
-        {
-          name: 'Tiramisu',
-          image: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0',
-          price: 8.5,
-          availability: 'UNAVAILABLE'
-        }
-      ]
-    },
-    {
-      id: "2",
-      name: "Sushi Zen",
-      image: "https://images.unsplash.com/photo-1553621042-f6e147245754",
-      streetAddress: "500 Pine Street, Seattle, WA 98101",
-      phoneNumbers: ['2065550142'],
-      contactPerson: "Akira Tanaka",
-      email: "akira@sushizen.com",
-      openingHours: [
-        { day: 'Monday', open: '11:30', close: '21:30', closed: false },
-        { day: 'Tuesday', open: '11:30', close: '21:30', closed: false },
-        { day: 'Wednesday', open: '11:30', close: '21:30', closed: false },
-        { day: 'Thursday', open: '11:30', close: '22:00', closed: false },
-        { day: 'Friday', open: '11:30', close: '22:30', closed: false },
-        { day: 'Saturday', open: '12:00', close: '22:30', closed: false },
-        { day: 'Sunday', open: '12:00', close: '21:00', closed: false }
-      ],
-      menu: [
-        {
-          name: 'Cherry Blossom Roll',
-          image: 'https://images.unsplash.com/photo-1553621042-f6e147245754',
-          price: 14.0,
-          availability: 'AVAILABLE'
-        },
-        {
-          name: 'Salmon Nigiri',
-          image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c',
-          price: 4.5,
-          availability: 'AVAILABLE'
-        },
-        {
-          name: 'Matcha Cheesecake',
-          image: 'https://images.unsplash.com/photo-1551024601-bec78aea704b',
-          price: 7.5,
-          availability: 'UNAVAILABLE'
-        }
-      ]
-    }
-  ]);
+  const [pendingRestaurants, setPendingRestaurants] = useState<RestaurantApplication[]>([]);
+  const [activeRestaurants, setActiveRestaurants] = useState<ActiveRestaurantSummary[]>([]);
 
+  const [staffMembers, setStaffMembers] = useState<
+    { id: string; name: string; username: string; role: string; status: string }[]
+  >([]);
+
+  const [drivers, setDrivers] = useState<{ id: string; name: string; status: string }[]>([]);
+
+  const [newStaffForm, setNewStaffForm] = useState({ firstName: "", lastName: "", username: "", password: "" });
+  const [staffNameError, setStaffNameError] = useState("");
+  const [newDriverForm, setNewDriverForm] = useState({ name: "" });
+  const [driverNameError, setDriverNameError] = useState("");
 
   useEffect(() => {
     if (incomingRequests.length === 0) {
@@ -157,29 +91,61 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
     });
   }, [incomingRequests, onConsumeIncomingRequests]);
 
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [rest, staff, driver, pending] = await Promise.all([
+          api.listRestaurants(),
+          api.listStaff(),
+          api.listDrivers(),
+          api.listPendingRestaurants()
+        ]);
 
-  const [activeRestaurants] = useState<ActiveRestaurantSummary[]>([
-    { id: "101", name: "Sunset Grill", cuisine: "American", status: 'online' },
-    { id: "102", name: "Luna Sushi", cuisine: "Japanese", status: 'online' },
-    { id: "103", name: "Spice Route", cuisine: "Indian", status: 'offline' },
-    { id: "104", name: "Garden Fresh", cuisine: "Vegan", status: 'online' }
-  ]);
+        setActiveRestaurants(
+          rest.map((r: any, idx: number) => ({
+            id: r.restName ?? String(idx),
+            name: r.restName,
+            status: r.isActive === "Y" ? "online" : "offline"
+          }))
+        );
 
-  const [staffMembers, setStaffMembers] = useState([
-    { id: "1", name: "John Smith", username: "smith01", role: "staff", status: "active" },
-    { id: "2", name: "Sarah Johnson", username: "johnson02", role: "staff", status: "active" }
-  ]);
+        setPendingRestaurants(
+          pending.map((p: any, idx: number) => ({
+            id: p.restName ?? String(idx),
+            name: p.restName,
+            streetAddress: "",
+            phoneNumbers: [p.contactPhone],
+            contactPerson: p.contactName,
+            email: p.contactEmail,
+            openingHours: [],
+            menu: []
+          }))
+        );
 
-  const [drivers, setDrivers] = useState([
-    { id: "1", name: "Mike Wilson", status: "available" },
-    { id: "2", name: "Lisa Brown", status: "on-delivery" },
-    { id: "3", name: "David Lee", status: "available" }
-  ]);
+        setStaffMembers(
+          staff.map((s: any, idx: number) => ({
+            id: String(idx),
+            name: `${s.firstName} ${s.lastName}`,
+            username: s.username,
+            role: "staff",
+            status: (s.employementStatus || "").toLowerCase()
+          }))
+        );
 
-  const [newStaffForm, setNewStaffForm] = useState({ firstName: "", lastName: "", username: "", password: "" });
-  const [staffNameError, setStaffNameError] = useState("");
-  const [newDriverForm, setNewDriverForm] = useState({ name: "" });
-  const [driverNameError, setDriverNameError] = useState("");
+        setDrivers(
+          driver.map((d: any, idx: number) => ({
+            id: String(idx),
+            name: d.driverName,
+            status: d.employementStatus === "Active" ? "available" : "inactive"
+          }))
+        );
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to load admin data");
+      }
+    };
+
+    void load();
+  }, []);
 
   const handleLogout = () => {
     toast.success("Logged out successfully");
@@ -221,485 +187,365 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
       return;
     }
 
-    const lastNameToken = trimmedLastName.split(' ').pop()?.toLowerCase() || trimmedFirstName.toLowerCase();
-    const randomDigits = Math.floor(10 + Math.random() * 90).toString();
-    const username = lastNameToken + randomDigits;
+    if (!newStaffForm.username.trim() || !newStaffForm.password.trim()) {
+      setStaffNameError("Username and password are required");
+      return;
+    }
 
-    const newStaff = {
-      id: Date.now().toString(),
-      name: fullName,
-      username,
-      role: "staff",
-      status: "active"
+    const doCreate = async () => {
+      try {
+        await api.createStaff({
+          username: newStaffForm.username.trim(),
+          password: newStaffForm.password.trim(),
+          firstName: trimmedFirstName,
+          lastName: trimmedLastName
+        });
+        setStaffMembers(prev => [
+          ...prev,
+          {
+            id: (prev.length + 1).toString(),
+            name: fullName,
+            username: newStaffForm.username.trim(),
+            role: "staff",
+            status: "active"
+          }
+        ]);
+        setStaffNameError("");
+        setNewStaffForm({ firstName: "", lastName: "", username: "", password: "" });
+        toast.success("New staff member added");
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to add staff");
+      }
     };
 
-    setStaffMembers(prev => [...prev, newStaff]);
-    setNewStaffForm({ firstName: "", lastName: "", username: "", password: "" });
-    setStaffNameError("");
-    toast.success("Staff Member successfully added to system.");
+    void doCreate();
   };
 
+  const toggleStaffStatus = (id: string) => {
+    const target = staffMembers.find(s => s.id === id);
+    if (!target) return;
+    const nextStatus = target.status === "active" ? "Inactive" : "Active";
 
-  const deleteStaff = (id: string) => {
-    const staff = staffMembers.find(s => s.id === id);
-    if (confirm(`Are you sure you want to delete staff account ${staff?.username}?`)) {
-      setStaffMembers(prev => prev.filter(s => s.id !== id));
-      toast.success("Staff account deleted");
-    }
+    const doUpdate = async () => {
+      try {
+        await api.setStaffStatus(target.username, nextStatus as "Active" | "Inactive");
+        setStaffMembers(prev => prev.map(staff => 
+          staff.id === id 
+            ? { ...staff, status: nextStatus.toLowerCase() }
+            : staff
+        ));
+        toast.success("Staff status updated");
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to update staff status");
+      }
+    };
+
+    void doUpdate();
   };
 
   const addDriver = () => {
     const trimmedName = newDriverForm.name.trim();
-
     if (!trimmedName) {
       setDriverNameError("Driver name is required");
-      toast.error("Driver name is required");
+      return;
+    }
+    const isDuplicate = drivers.some(
+      driver => driver.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (isDuplicate) {
+      setDriverNameError("Driver name must be unique");
       return;
     }
 
-    const nameExists = drivers.some(driver => driver.name.toLowerCase() === trimmedName.toLowerCase());
-    if (nameExists) {
-      setDriverNameError("Name is not unique. Driver already enrolled with this name. Try again.");
-      return;
-    }
-
-    const newDriver = {
-      id: Date.now().toString(),
-      name: trimmedName,
-      status: "available"
+    const doCreate = async () => {
+      try {
+        await api.createDriver(trimmedName);
+        setDrivers(prev => [...prev, { id: (prev.length + 1).toString(), name: trimmedName, status: "available" }]);
+        setDriverNameError("");
+        setNewDriverForm({ name: "" });
+        toast.success("New driver added");
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to add driver");
+      }
     };
 
-    setDrivers(prev => [...prev, newDriver]);
-    setNewDriverForm({ name: "" });
-    setDriverNameError("");
-    toast.success("Driver hired successfully");
+    void doCreate();
   };
 
-  const fireDriver = (id: string) => {
-    const driver = drivers.find(d => d.id === id);
-    if (confirm(`Are you sure you want to fire driver ${driver?.name}?`)) {
-      setDrivers(prev => prev.filter(d => d.id !== id));
-      toast.success("Driver removed");
-    }
+  const toggleDriverStatus = (id: string) => {
+    const target = drivers.find(d => d.id === id);
+    if (!target) return;
+    const nextStatus = target.status === "available" ? "Inactive" : "Active";
+
+    const doUpdate = async () => {
+      try {
+        await api.setDriverStatus(target.name, nextStatus as "Active" | "Inactive");
+        setDrivers(prev => prev.map(driver => 
+          driver.id === id 
+            ? { ...driver, status: nextStatus === "Active" ? "available" : "inactive" }
+            : driver
+        ));
+        toast.success("Driver status updated");
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to update driver status");
+      }
+    };
+
+    void doUpdate();
   };
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-primary to-accent py-4 px-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={onNavigateToLanding}
-              className="text-white hover:bg-white/20"
-            >
-              <ArrowLeft className="w-6 h-6" />
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-10 bg-card border-b">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" onClick={onNavigateToLanding} size="icon">
+              <ArrowLeft className="w-5 h-5" />
             </Button>
-            <div>
-              <h1 className="text-xl font-bold text-white">Admin Dashboard</h1>
-              <p className="text-white/80">FrontDash Administrator</p>
-            </div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Building className="w-6 h-6 text-primary" /> Admin Dashboard
+            </h1>
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={handleLogout}
-            className="text-white hover:bg-white/20"
-          >
-            <LogOut className="w-5 h-5 mr-2" />
-            Logout
-          </Button>
-        </div>
-      </header>
-
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <nav className="w-64 bg-muted/30 border-r border-border p-4">
-          <div className="space-y-2">
+          <div className="flex items-center gap-2">
             <Button
-              variant={activeTab === 'overview' ? 'default' : 'ghost'}
-              className="w-full justify-start"
+              variant={activeTab === 'overview' ? "default" : "ghost"}
               onClick={() => setActiveTab('overview')}
             >
-              <Building className="w-4 h-4 mr-2" />
               Overview
             </Button>
             <Button
-              variant={activeTab === 'restaurants' ? 'default' : 'ghost'}
-              className="w-full justify-start"
+              variant={activeTab === 'restaurants' ? "default" : "ghost"}
               onClick={() => setActiveTab('restaurants')}
             >
-              <Building className="w-4 h-4 mr-2" />
               Restaurants
             </Button>
             <Button
-              variant={activeTab === 'staff' ? 'default' : 'ghost'}
-              className="w-full justify-start"
+              variant={activeTab === 'staff' ? "default" : "ghost"}
               onClick={() => setActiveTab('staff')}
             >
-              <Users className="w-4 h-4 mr-2" />
-              Staff Management
+              Staff
             </Button>
             <Button
-              variant={activeTab === 'drivers' ? 'default' : 'ghost'}
-              className="w-full justify-start"
+              variant={activeTab === 'drivers' ? "default" : "ghost"}
               onClick={() => setActiveTab('drivers')}
             >
-              <Truck className="w-4 h-4 mr-2" />
-              Driver Management
+              Drivers
+            </Button>
+            <Button variant="ghost" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
             </Button>
           </div>
-        </nav>
+        </div>
+      </header>
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Overview</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Active Restaurants</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{activeRestaurants.filter(restaurant => restaurant.status === 'online').length}</div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Pending Requests</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{pendingRestaurants.length}</div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Staff Members</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{staffMembers.length}</div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Drivers</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{drivers.length}</div>
-                  </CardContent>
-                </Card>
+      <main className="container mx-auto px-4 py-8 space-y-8">
+        {activeTab === 'overview' && (
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg">Pending Restaurants</CardTitle>
+                <Badge variant="secondary">{pendingRestaurants.length}</Badge>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {pendingRestaurants.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No pending requests right now.</p>
+                  ) : pendingRestaurants.map((r) => (
+                    <div key={r.id} className="border rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <p className="font-semibold">{r.name}</p>
+                          <p className="text-sm text-muted-foreground">{r.contactPerson}</p>
+                          <p className="text-sm text-muted-foreground">{r.email}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => approveRestaurant(r.id)}>Approve</Button>
+                          <Button size="sm" variant="outline" onClick={() => rejectRestaurant(r.id)}>Reject</Button>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {r.openingHours?.slice(0, 3).map((h, idx) => (
+                          <Badge key={idx} variant="outline">{h.day}: {h.closed ? 'Closed' : `${formatTime(h.open)} - ${formatTime(h.close)}`}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg">Active Restaurants</CardTitle>
+                <Badge variant="secondary">{activeRestaurants.length}</Badge>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {activeRestaurants.map((r) => (
+                  <div key={r.id} className="flex items-center justify-between border rounded-lg p-3">
+                    <div>
+                      <p className="font-semibold">{r.name}</p>
+                      <p className="text-sm text-muted-foreground">Status: {r.status}</p>
+                    </div>
+                    <Badge variant={r.status === 'online' ? 'default' : 'secondary'} className="capitalize">
+                      {r.status}
+                    </Badge>
+                  </div>
+                ))}
+                {activeRestaurants.length === 0 && <p className="text-sm text-muted-foreground">No restaurants loaded.</p>}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg">Staff & Drivers</CardTitle>
+                <Badge variant="secondary">{staffMembers.length + drivers.length}</Badge>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">Staff</p>
+                  <p className="text-2xl font-bold">{staffMembers.length}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Drivers</p>
+                  <p className="text-2xl font-bold">{drivers.length}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'restaurants' && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Building className="w-5 h-5" />
+                <CardTitle>Restaurants</CardTitle>
               </div>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg font-semibold">Active Restaurants Snapshot</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {activeRestaurants.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No active restaurants online</p>
-                  ) : (
-                    activeRestaurants.map((restaurant) => (
-                      <div
-                        key={restaurant.id}
-                        className="flex flex-col gap-3 rounded-lg border border-border p-4 md:flex-row md:items-center md:justify-between"
-                      >
-                        <div>
-                          <h3 className="text-base font-semibold">{restaurant.name}</h3>
-                          <p className="text-sm text-muted-foreground">{restaurant.cuisine}</p>
-                        </div>
-                        <div className="flex flex-col items-start gap-3 text-sm md:flex-row md:items-center md:gap-4">
-                          <Badge variant={restaurant.status === 'online' ? 'default' : 'secondary'} className="capitalize">
-                            {restaurant.status === 'online' ? 'Online' : 'Offline'}
-                          </Badge>
-                          <span className="text-muted-foreground">
-                            {restaurant.status === 'online' ? 'Accepting orders' : 'Temporarily paused'}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
-
-            </div>
-          )}
-
-          {activeTab === 'restaurants' && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Restaurant Management</h2>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Pending Registration Requests</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {pendingRestaurants.length === 0 ? (
-                      <p className="text-muted-foreground">No pending requests</p>
-                    ) : (
-                      pendingRestaurants.map((restaurant) => (
-                        <div key={restaurant.id} className="space-y-4 p-4 border border-border rounded-lg">
-                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                            <div className="flex items-start gap-4">
-                              {restaurant.image ? (
-                                <img
-                                  src={restaurant.image}
-                                  alt={`${restaurant.name} restaurant`}
-                                  className="h-16 w-16 rounded-md object-cover border flex-shrink-0"
-                                />
-                              ) : (
-                                <div className="h-16 w-16 rounded-md border border-dashed flex-shrink-0 flex items-center justify-center text-xs text-muted-foreground">
-                                  No Image
-                                </div>
-                              )}
-                              <div className="space-y-1">
-                                <h3 className="text-lg font-semibold">{restaurant.name}</h3>
-                                <p className="text-sm text-muted-foreground">Contact Person: {restaurant.contactPerson}</p>
-                                <p className="text-sm text-muted-foreground">Email: {restaurant.email}</p>
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                onClick={() => approveRestaurant(restaurant.id)}
-                                className="bg-green-600 hover:bg-green-700 text-white"
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => rejectRestaurant(restaurant.id)}
-                              >
-                                Reject
-                              </Button>
-                            </div>
-                          </div>
-
-                          <div className="grid gap-4 md:grid-cols-2">
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium">Street Address</Label>
-                              <p className="text-sm text-muted-foreground">{restaurant.streetAddress}</p>
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium">Phone Numbers</Label>
-                              <div className="flex flex-wrap gap-2">
-                                {restaurant.phoneNumbers.map((phone) => (
-                                  <Badge key={phone} variant="outline">{phone}</Badge>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium">Opening Hours</Label>
-                              <div className="space-y-1">
-                                {restaurant.openingHours.map((hour) => (
-                                  <p key={`${restaurant.id}-${hour.day}`} className="text-sm text-muted-foreground">
-                                    <span className="font-medium text-foreground">{hour.day}: </span>
-                                    {hour.closed ? 'Closed' : `${formatTime(hour.open)} - ${formatTime(hour.close)}`}
-                                  </p>
-                                ))}
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-sm font-medium">Menu Items</Label>
-                              <div className="space-y-2">
-                                {restaurant.menu.map((item) => (
-                                  <div key={item.name} className="flex items-center gap-3 rounded border border-dashed border-border p-2">
-                                    {item.image ? (
-                                      <img
-                                        src={item.image}
-                                        alt={`${item.name} dish`}
-                                        className="h-12 w-12 rounded object-cover border"
-                                      />
-                                    ) : (
-                                      <div className="h-12 w-12 rounded border border-dashed flex items-center justify-center text-[10px] text-muted-foreground">
-                                        No Image
-                                      </div>
-                                    )}
-                                    <div className="flex-1">
-                                      <p className="text-sm font-medium">{item.name}</p>
-                                      <p className="text-xs text-muted-foreground">${item.price.toFixed(2)} - {item.availability}</p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
+              <Badge variant="secondary">{activeRestaurants.length} active</Badge>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {activeRestaurants.map(r => (
+                <div key={r.id} className="border rounded-lg p-4 flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold">{r.name}</p>
+                    <p className="text-sm text-muted-foreground">Status: {r.status}</p>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+                  <Badge variant={r.status === 'online' ? 'default' : 'secondary'} className="capitalize">
+                    {r.status}
+                  </Badge>
+                </div>
+              ))}
+              {activeRestaurants.length === 0 && <p className="text-muted-foreground text-sm">No restaurants loaded.</p>}
+            </CardContent>
+          </Card>
+        )}
 
-          {activeTab === 'staff' && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Staff Management</h2>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Add New Staff Member</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="staff-first-name">First Name</Label>
-                      <Input
-                        id="staff-first-name"
-                        value={newStaffForm.firstName}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setNewStaffForm(prev => ({ ...prev, firstName: value }));
-                          if (staffNameError) {
-                            setStaffNameError("");
-                          }
-                        }}
-                        placeholder="John"
-                      />
+        {activeTab === 'staff' && (
+          <div className="grid lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  <CardTitle>Staff</CardTitle>
+                </div>
+                <Badge variant="secondary">{staffMembers.length}</Badge>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {staffMembers.map(staff => (
+                  <div key={staff.id} className="border rounded-lg p-3 flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">{staff.name}</p>
+                      <p className="text-sm text-muted-foreground">{staff.username}</p>
+                      <Badge variant={staff.status === "active" ? "default" : "secondary"} className="capitalize mt-1">
+                        {staff.status}
+                      </Badge>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="staff-last-name">Last Name</Label>
-                      <Input
-                        id="staff-last-name"
-                        value={newStaffForm.lastName}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setNewStaffForm(prev => ({ ...prev, lastName: value }));
-                          if (staffNameError) {
-                            setStaffNameError("");
-                          }
-                        }}
-                        placeholder="Smith"
-                      />
+                    <Button variant="outline" size="sm" onClick={() => toggleStaffStatus(staff.id)}>
+                      <UserMinus className="w-4 h-4 mr-1" />
+                      {staff.status === "active" ? "Deactivate" : "Activate"}
+                    </Button>
+                  </div>
+                ))}
+                {staffMembers.length === 0 && <p className="text-sm text-muted-foreground">No staff loaded.</p>}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><UserPlus className="w-5 h-5" />Add Staff</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>First name</Label>
+                    <Input value={newStaffForm.firstName} onChange={(e) => setNewStaffForm(prev => ({ ...prev, firstName: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label>Last name</Label>
+                    <Input value={newStaffForm.lastName} onChange={(e) => setNewStaffForm(prev => ({ ...prev, lastName: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label>Username</Label>
+                    <Input value={newStaffForm.username} onChange={(e) => setNewStaffForm(prev => ({ ...prev, username: e.target.value }))} />
+                  </div>
+                  <div>
+                    <Label>Password</Label>
+                    <Input type="password" value={newStaffForm.password} onChange={(e) => setNewStaffForm(prev => ({ ...prev, password: e.target.value }))} />
+                  </div>
+                </div>
+                {staffNameError && <p className="text-sm text-destructive">{staffNameError}</p>}
+                <Button className="w-full" onClick={addStaff}>Add Staff Member</Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {activeTab === 'drivers' && (
+          <div className="grid lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Truck className="w-5 h-5" />
+                  <CardTitle>Drivers</CardTitle>
+                </div>
+                <Badge variant="secondary">{drivers.length}</Badge>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {drivers.map(driver => (
+                  <div key={driver.id} className="border rounded-lg p-3 flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">{driver.name}</p>
+                      <Badge variant={driver.status === "available" ? "default" : "secondary"} className="capitalize mt-1">
+                        {driver.status}
+                      </Badge>
                     </div>
+                    <Button variant="outline" size="sm" onClick={() => toggleDriverStatus(driver.id)}>
+                      <UserMinus className="w-4 h-4 mr-1" />
+                      {driver.status === "available" ? "Inactivate" : "Activate"}
+                    </Button>
                   </div>
-                  {staffNameError && (
-                    <p className="text-sm text-red-500">{staffNameError}</p>
-                  )}
-                  <Button onClick={addStaff}>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Add Staff Member
-                  </Button>
-                </CardContent>
-              </Card>
+                ))}
+                {drivers.length === 0 && <p className="text-sm text-muted-foreground">No drivers loaded.</p>}
+              </CardContent>
+            </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Current Staff Members</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {staffMembers.map(staff => (
-                      <div key={staff.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                        <div>
-                          <h3 className="font-medium">{staff.name}</h3>
-                          <p className="text-sm text-muted-foreground">Username: {staff.username}</p>
-                          <Badge variant="outline">{staff.status}</Badge>
-                        </div>
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          onClick={() => deleteStaff(staff.id)}
-                        >
-                          <UserMinus className="w-4 h-4 mr-2" />
-                          Delete
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {activeTab === 'drivers' && (
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Driver Management</h2>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Hire New Driver</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Driver Name (must be unique)</Label>
-                    <Input 
-                      value={newDriverForm.name}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setNewDriverForm(prev => ({ ...prev, name: value }));
-                        if (driverNameError) {
-                          setDriverNameError("");
-                        }
-                      }}
-                      placeholder="Mike Wilson"
-                    />
-                    {driverNameError && (
-                      <p className="text-sm text-red-500">{driverNameError}</p>
-                    )}
-                  </div>
-                  <Button onClick={addDriver}>
-                    <UserPlus className="w-4 h-4 mr-2" />
-                    Hire Driver
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Current Drivers</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {drivers.map(driver => (
-                      <div key={driver.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                        <div>
-                          <h3 className="font-medium">{driver.name}</h3>
-                          <Badge variant={driver.status === 'available' ? 'default' : 'secondary'}>
-                            {driver.status === 'available' ? 'Available' : 'On Delivery'}
-                          </Badge>
-                        </div>
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          onClick={() => fireDriver(driver.id)}
-                        >
-                          <UserMinus className="w-4 h-4 mr-2" />
-                          Fire
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-        </main>
-      </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><UserPlus className="w-5 h-5" />Add Driver</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label>Driver name</Label>
+                  <Input value={newDriverForm.name} onChange={(e) => setNewDriverForm({ name: e.target.value })} />
+                  {driverNameError && <p className="text-sm text-destructive mt-1">{driverNameError}</p>}
+                </div>
+                <Button className="w-full" onClick={addDriver}>Add Driver</Button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

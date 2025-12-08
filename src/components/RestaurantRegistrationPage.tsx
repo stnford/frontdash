@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { ArrowLeft, Upload, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import type { RestaurantApplication } from "./AdminDashboard";
+import { api } from "../lib/api";
 
 interface RestaurantRegistrationPageProps {
   onNavigateBack: () => void;
@@ -27,6 +28,9 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
   const [formData, setFormData] = useState({
     name: "",
     streetAddress: "",
+    city: "",
+    state: "",
+    zip: "",
     phone: "",
     contactPerson: "",
     email: ""
@@ -127,31 +131,50 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
     }
 
     // Simulate submission
-    toast.success("Registration request submitted! You will receive login credentials via email once approved by FrontDash.");
-    
-    const application: RestaurantApplication = {
-      id: Date.now().toString(),
-      name: formData.name.trim(),
-      image: restaurantImage ?? undefined,
-      streetAddress: formData.streetAddress.trim(),
-      phoneNumbers: [formData.phone],
-      contactPerson: formData.contactPerson.trim(),
-      email: formData.email.trim(),
-      openingHours: Object.entries(openingHours).map(([day, hours]) => ({
-        day,
-        open: hours.open,
-        close: hours.close,
-        closed: hours.closed
-      })),
-      menu: validMenuItems.map(item => ({
-        name: item.name.trim(),
-        image: "",
-        price: parseFloat(item.price) || 0,
-        availability: item.availability
-      }))
+    const doSubmit = async () => {
+      try {
+        await api.registerRestaurant({
+          restName: formData.name.trim(),
+          streetAddress1: formData.streetAddress.trim(),
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          zip: formData.zip.trim(),
+          contactName: formData.contactPerson.trim(),
+          contactEmail: formData.email.trim(),
+          contactPhone: formData.phone.trim()
+        });
+
+        toast.success("Registration request submitted! You will receive login credentials via email once approved.");
+        
+        const application: RestaurantApplication = {
+          id: Date.now().toString(),
+          name: formData.name.trim(),
+          image: restaurantImage ?? undefined,
+          streetAddress: formData.streetAddress.trim(),
+          phoneNumbers: [formData.phone],
+          contactPerson: formData.contactPerson.trim(),
+          email: formData.email.trim(),
+          openingHours: Object.entries(openingHours).map(([day, hours]) => ({
+            day,
+            open: hours.open,
+            close: hours.close,
+            closed: hours.closed
+          })),
+          menu: validMenuItems.map(item => ({
+            name: item.name.trim(),
+            image: "",
+            price: parseFloat(item.price) || 0,
+            availability: item.availability
+          }))
+        };
+
+        onSubmitRegistration(application);
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to submit registration");
+      }
     };
 
-    onSubmitRegistration(application);
+    void doSubmit();
   };
 
   return (
@@ -198,6 +221,32 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
                     onChange={(e) => setFormData(prev => ({ ...prev, streetAddress: e.target.value }))}
                     required
                   />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <Label htmlFor="city">City</Label>
+                    <Input
+                      id="city"
+                      value={formData.city}
+                      onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="state">State</Label>
+                    <Input
+                      id="state"
+                      value={formData.state}
+                      onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="zip">ZIP</Label>
+                    <Input
+                      id="zip"
+                      value={formData.zip}
+                      onChange={(e) => setFormData(prev => ({ ...prev, zip: e.target.value }))}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -410,4 +459,3 @@ export function RestaurantRegistrationPage({ onNavigateBack, onSubmitRegistratio
     </div>
   );
 }
-

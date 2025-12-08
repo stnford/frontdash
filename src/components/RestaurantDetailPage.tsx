@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ArrowLeft, ShoppingCart, Plus, Minus } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { api } from "../lib/api";
 
 interface Restaurant {
   id: string;
@@ -14,7 +15,7 @@ interface Restaurant {
 }
 
 interface MenuItem {
-  id: string;
+  id: number;
   name: string;
   price: number;
   image: string;
@@ -26,44 +27,11 @@ interface RestaurantDetailPageProps {
   restaurant: Restaurant;
   onNavigateBack: () => void;
   onNavigateToCart: () => void;
-  onAddToCart: (item: { name: string; price: number; quantity: number; restaurantName: string }) => void;
+  onAddToCart: (item: { itemId: number; name: string; price: number; quantity: number; restaurantName: string }) => void;
   cartItemCount: number;
 }
 
-const menuItems: MenuItem[] = [
-  {
-    id: "1",
-    name: "Margherita Pizza",
-    price: 18.99,
-    image: "https://images.unsplash.com/photo-1604382355076-af4b0eb60143",
-    available: true,
-    description: "Fresh mozzarella, tomato sauce, basil"
-  },
-  {
-    id: "2", 
-    name: "Pepperoni Pizza",
-    price: 21.99,
-    image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b",
-    available: true,
-    description: "Pepperoni, mozzarella, tomato sauce"
-  },
-  {
-    id: "3",
-    name: "Caesar Salad",
-    price: 12.99,
-    image: "https://images.unsplash.com/photo-1546793665-c74683f339c1",
-    available: true,
-    description: "Romaine lettuce, parmesan, croutons, caesar dressing"
-  },
-  {
-    id: "4",
-    name: "Garlic Bread",
-    price: 8.99,
-    image: "https://images.unsplash.com/photo-1593527270723-834c53a3fed4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnYXJsaWMlMjBicmVhZCUyMGZvb2R8ZW58MXx8fHwxNzU4NTYyMjAxfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    available: false,
-    description: "Toasted bread with garlic butter and herbs"
-  }
-];
+const PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1498579150354-977475b7ea0b?auto=format&fit=crop&w=800&q=80";
 
 export function RestaurantDetailPage({ 
   restaurant, 
@@ -73,6 +41,32 @@ export function RestaurantDetailPage({
   cartItemCount 
 }: RestaurantDetailPageProps) {
   const [itemQuantities, setItemQuantities] = useState<Record<string, number>>({});
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const menu = await api.getRestaurantMenu(restaurant.name);
+        const mapped: MenuItem[] = menu.map((row) => ({
+          id: Number(row.itemID),
+          name: row.itemName,
+          price: Number(row.itemPrice),
+          image: PLACEHOLDER_IMAGE,
+          available: row.isAvailable === "Y",
+          description: row.itemDescription || "Delicious menu item"
+        }));
+        setMenuItems(mapped);
+      } catch (err: any) {
+        console.error(err);
+        setError("Unable to load menu for this restaurant.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [restaurant.name]);
 
   const updateQuantity = (itemId: string, change: number) => {
     setItemQuantities(prev => ({
@@ -84,6 +78,7 @@ export function RestaurantDetailPage({
   const addItemToCart = (item: MenuItem) => {
     const quantity = itemQuantities[item.id] || 1;
     onAddToCart({
+      itemId: item.id,
       name: item.name,
       price: item.price,
       quantity,
@@ -146,6 +141,9 @@ export function RestaurantDetailPage({
       <main className="flex-1 overflow-y-auto">
         <div className="container mx-auto px-4 py-6">
           <h2 className="text-2xl font-bold mb-6 text-foreground">Menu</h2>
+
+          {loading && <div className="text-muted-foreground">Loading menu...</div>}
+          {error && <div className="text-destructive">{error}</div>}
           
           <div className="space-y-4">
             {menuItems.map((item) => (

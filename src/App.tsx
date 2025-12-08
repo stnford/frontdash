@@ -35,6 +35,7 @@ type UserType = 'customer' | 'restaurant' | 'admin' | 'staff' | null;
 
 interface CartItem {
   id: string;
+  itemId: number;
   name: string;
   price: number;
   quantity: number;
@@ -53,6 +54,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('landing');
   const [userType, setUserType] = useState<UserType>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
+  const [loggedInRestaurantName, setLoggedInRestaurantName] = useState<string | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [showRestaurantSwitchDialog, setShowRestaurantSwitchDialog] = useState(false);
@@ -96,7 +98,10 @@ export default function App() {
   const navigateToAdminLogin = () => setCurrentPage('admin-login');
   const navigateToStaffLogin = () => setCurrentPage('staff-login');
   
-  const navigateToRestaurantDashboard = () => {
+  const navigateToRestaurantDashboard = (restName?: string) => {
+    if (restName) {
+      setLoggedInRestaurantName(restName);
+    }
     setUserType('restaurant');
     setCurrentPage('restaurant-dashboard');
   };
@@ -115,8 +120,14 @@ export default function App() {
     // Check if cart is empty or if item is from the same restaurant
     if (cartItems.length === 0 || cartItems[0].restaurantName === item.restaurantName) {
       // Safe to add - either first item or same restaurant
-      const newItem = { ...item, id: Date.now().toString() };
-      setCartItems(prev => [...prev, newItem]);
+      setCartItems(prev => {
+        const existing = prev.find(ci => ci.itemId === item.itemId);
+        if (existing) {
+          return prev.map(ci => ci.itemId === item.itemId ? { ...ci, quantity: ci.quantity + item.quantity } : ci);
+        }
+        const newItem = { ...item, id: `${item.itemId}` };
+        return [...prev, newItem];
+      });
     } else {
       // Different restaurant - show confirmation dialog
       setPendingCartItem(item);
@@ -127,7 +138,7 @@ export default function App() {
   const handleRestaurantSwitch = () => {
     if (pendingCartItem) {
       // Clear cart and add new item
-      const newItem = { ...pendingCartItem, id: Date.now().toString() };
+      const newItem = { ...pendingCartItem, id: `${pendingCartItem.itemId}` };
       setCartItems([newItem]);
       setPendingCartItem(null);
     }
@@ -231,7 +242,15 @@ export default function App() {
           title="Restaurant Login"
           userType="restaurant"
           onNavigateBack={navigateToSignIn}
-          onLoginSuccess={navigateToRestaurantDashboard}
+          onLoginSuccess={(username) => {
+            const map: Record<string, string> = {
+              owner_chicken: "All Chicken Meals",
+              owner_pizza: "Pizza Only",
+              owner_burger: "Best Burgers",
+            };
+            const restName = map[username] ?? selectedRestaurant?.name ?? "All Chicken Meals";
+            navigateToRestaurantDashboard(restName);
+          }}
         />
       );
       
@@ -259,6 +278,7 @@ export default function App() {
       return (
         <RestaurantDashboard 
           onNavigateToLanding={navigateToLanding}
+          initialRestaurantName={loggedInRestaurantName ?? selectedRestaurant?.name ?? "All Chicken Meals"}
         />
       );
       
@@ -306,4 +326,3 @@ export default function App() {
       );
   }
 }
-
