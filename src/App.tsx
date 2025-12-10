@@ -55,6 +55,8 @@ export default function App() {
   const [userType, setUserType] = useState<UserType>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
   const [loggedInRestaurantName, setLoggedInRestaurantName] = useState<string | null>(null);
+  const [restaurantUsername, setRestaurantUsername] = useState<string | null>(null);
+  const [staffUsername, setStaffUsername] = useState<string | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [orderDetails, setOrderDetails] = useState<any>(null);
   const [showRestaurantSwitchDialog, setShowRestaurantSwitchDialog] = useState(false);
@@ -249,6 +251,7 @@ export default function App() {
               owner_burger: "Best Burgers",
             };
             const restName = map[username] ?? selectedRestaurant?.name ?? "All Chicken Meals";
+            setRestaurantUsername(username);
             navigateToRestaurantDashboard(restName);
           }}
         />
@@ -270,7 +273,10 @@ export default function App() {
           title="FrontDash Staff Login"
           userType="staff"
           onNavigateBack={navigateToSignIn}
-          onLoginSuccess={navigateToStaffDashboard}
+          onLoginSuccess={(username) => {
+            setStaffUsername(username);
+            navigateToStaffDashboard();
+          }}
         />
       );
       
@@ -279,6 +285,7 @@ export default function App() {
         <RestaurantDashboard 
           onNavigateToLanding={navigateToLanding}
           initialRestaurantName={loggedInRestaurantName ?? selectedRestaurant?.name ?? "All Chicken Meals"}
+          username={restaurantUsername || ""}
         />
       );
       
@@ -295,6 +302,7 @@ export default function App() {
       return (
         <StaffDashboard 
           onNavigateToLanding={navigateToLanding}
+          username={staffUsername || ""}
         />
       );
       

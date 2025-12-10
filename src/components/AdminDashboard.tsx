@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { LogOut, Users, Building, Truck, UserPlus, UserMinus, ArrowLeft } from "lucide-react";
+import { LogOut, Users, Building, Truck, UserPlus, UserMinus, ArrowLeft, RefreshCcw } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import { api } from "../lib/api";
 
@@ -69,10 +69,13 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
 
   const [drivers, setDrivers] = useState<{ id: string; name: string; status: string }[]>([]);
 
-  const [newStaffForm, setNewStaffForm] = useState({ firstName: "", lastName: "", username: "", password: "" });
+  const [newStaffForm, setNewStaffForm] = useState({ firstName: "", lastName: "" });
+  const [generatedCreds, setGeneratedCreds] = useState<{ username: string; password: string } | null>(null);
   const [staffNameError, setStaffNameError] = useState("");
   const [newDriverForm, setNewDriverForm] = useState({ name: "" });
   const [driverNameError, setDriverNameError] = useState("");
+
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (incomingRequests.length === 0) {
@@ -91,75 +94,81 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
     });
   }, [incomingRequests, onConsumeIncomingRequests]);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [rest, staff, driver, pending] = await Promise.all([
-          api.listRestaurants(),
-          api.listStaff(),
-          api.listDrivers(),
-          api.listPendingRestaurants()
-        ]);
+  const loadData = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [rest, staff, driver, pending] = await Promise.all([
+        api.listRestaurants(),
+        api.listStaff(),
+        api.listDrivers(),
+        api.listPendingRestaurants()
+      ]);
 
-        setActiveRestaurants(
-          rest.map((r: any, idx: number) => ({
-            id: r.restName ?? String(idx),
-            name: r.restName,
-            status: r.isActive === "Y" ? "online" : "offline"
-          }))
-        );
+      setActiveRestaurants(
+        rest.map((r: any, idx: number) => ({
+          id: r.restName ?? String(idx),
+          name: r.restName,
+          status: r.isActive === "Y" ? "online" : "offline"
+        }))
+      );
 
-        setPendingRestaurants(
-          pending.map((p: any, idx: number) => ({
-            id: p.restName ?? String(idx),
-            name: p.restName,
-            streetAddress: "",
-            phoneNumbers: [p.contactPhone],
-            contactPerson: p.contactName,
-            email: p.contactEmail,
-            openingHours: [],
-            menu: []
-          }))
-        );
+      setPendingRestaurants(
+        pending.map((p: any, idx: number) => ({
+          id: p.restName ?? String(idx),
+          name: p.restName,
+          streetAddress: [p.streetAddress1, p.streetAddress2].filter(Boolean).join(" "),
+          phoneNumbers: [p.contactPhone].filter(Boolean),
+          contactPerson: p.contactName,
+          email: p.contactEmail,
+          openingHours: [],
+          menu: []
+        }))
+      );
 
-        setStaffMembers(
-          staff.map((s: any, idx: number) => ({
-            id: String(idx),
-            name: `${s.firstName} ${s.lastName}`,
-            username: s.username,
-            role: "staff",
-            status: (s.employementStatus || "").toLowerCase()
-          }))
-        );
+      setStaffMembers(
+        staff.map((s: any, idx: number) => ({
+          id: String(idx),
+          name: `${s.firstName} ${s.lastName}`,
+          username: s.username,
+          role: "staff",
+          status: (s.employementStatus || "").toLowerCase()
+        }))
+      );
 
-        setDrivers(
-          driver.map((d: any, idx: number) => ({
-            id: String(idx),
-            name: d.driverName,
-            status: d.employementStatus === "Active" ? "available" : "inactive"
-          }))
-        );
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to load admin data");
-      }
-    };
-
-    void load();
+      setDrivers(
+        driver.map((d: any, idx: number) => ({
+          id: String(idx),
+          name: d.driverName,
+          status: d.employementStatus === "Active" ? "available" : "inactive"
+        }))
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to load admin data");
+    } finally {
+      setRefreshing(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
 
   const handleLogout = () => {
     toast.success("Logged out successfully");
     onNavigateToLanding();
   };
 
-  const approveRestaurant = (id: string) => {
-    setPendingRestaurants(prev => prev.filter(r => r.id !== id));
-    toast.success("Restaurant approved! Login credentials have been sent.");
-  };
-
-  const rejectRestaurant = (id: string) => {
-    setPendingRestaurants(prev => prev.filter(r => r.id !== id));
-    toast.success("Restaurant registration rejected.");
+  const approveRestaurant = (name: string, decision: "Approved" | "Rejected") => {
+    const doDecision = async () => {
+      try {
+        await api.approveRestaurant(name, decision);
+        toast.success(`Restaurant ${decision.toLowerCase()}`);
+        await loadData();
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to update restaurant");
+      }
+    };
+    void doDecision();
   };
 
   const addStaff = () => {
@@ -187,16 +196,20 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
       return;
     }
 
-    if (!newStaffForm.username.trim() || !newStaffForm.password.trim()) {
-      setStaffNameError("Username and password are required");
-      return;
-    }
+    const base = trimmedLastName.replace(/\s+/g, "").toLowerCase();
+    let candidate = "";
+    do {
+      const suffix = Math.floor(10 + Math.random() * 90);
+      candidate = `${base}${suffix}`;
+    } while (staffMembers.some((s) => s.username === candidate));
+
+    const tempPassword = `temp-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const doCreate = async () => {
       try {
         await api.createStaff({
-          username: newStaffForm.username.trim(),
-          password: newStaffForm.password.trim(),
+          username: candidate,
+          password: tempPassword,
           firstName: trimmedFirstName,
           lastName: trimmedLastName
         });
@@ -205,14 +218,15 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
           {
             id: (prev.length + 1).toString(),
             name: fullName,
-            username: newStaffForm.username.trim(),
+            username: candidate,
             role: "staff",
             status: "active"
           }
         ]);
         setStaffNameError("");
-        setNewStaffForm({ firstName: "", lastName: "", username: "", password: "" });
-        toast.success("New staff member added");
+        setGeneratedCreds({ username: candidate, password: tempPassword });
+        setNewStaffForm({ firstName: "", lastName: "" });
+        toast.success("New staff member added with autogenerated credentials");
       } catch (err: any) {
         toast.error(err?.message || "Failed to add staff");
       }
@@ -331,6 +345,14 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
             >
               Drivers
             </Button>
+            <Button
+              variant="ghost"
+              onClick={() => void loadData()}
+              disabled={refreshing}
+            >
+              <RefreshCcw className="w-4 h-4 mr-2" />
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </Button>
             <Button variant="ghost" onClick={handleLogout}>
               <LogOut className="w-4 h-4 mr-2" />
               Logout
@@ -352,23 +374,30 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
                   {pendingRestaurants.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No pending requests right now.</p>
                   ) : pendingRestaurants.map((r) => (
-                    <div key={r.id} className="border rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
+                    <div key={r.id} className="border rounded-lg p-3 space-y-2">
+                      <div className="flex items-center justify-between">
                         <div>
                           <p className="font-semibold">{r.name}</p>
-                          <p className="text-sm text-muted-foreground">{r.contactPerson}</p>
-                          <p className="text-sm text-muted-foreground">{r.email}</p>
+                          <p className="text-sm text-muted-foreground">{r.contactPerson} • {r.email}</p>
+                          {r.streetAddress && (
+                            <p className="text-sm text-muted-foreground">{r.streetAddress}</p>
+                          )}
+                          {r.phoneNumbers?.[0] && (
+                            <p className="text-sm text-muted-foreground">Phone: {r.phoneNumbers[0]}</p>
+                          )}
                         </div>
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={() => approveRestaurant(r.id)}>Approve</Button>
-                          <Button size="sm" variant="outline" onClick={() => rejectRestaurant(r.id)}>Reject</Button>
+                          <Button size="sm" onClick={() => approveRestaurant(r.name, "Approved")}>Approve</Button>
+                          <Button size="sm" variant="outline" onClick={() => approveRestaurant(r.name, "Rejected")}>Reject</Button>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {r.openingHours?.slice(0, 3).map((h, idx) => (
-                          <Badge key={idx} variant="outline">{h.day}: {h.closed ? 'Closed' : `${formatTime(h.open)} - ${formatTime(h.close)}`}</Badge>
-                        ))}
-                      </div>
+                      {r.openingHours?.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {r.openingHours.slice(0, 3).map((h, idx) => (
+                            <Badge key={idx} variant="outline">{h.day}: {h.closed ? 'Closed' : `${formatTime(h.open)} - ${formatTime(h.close)}`}</Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -485,17 +514,17 @@ export function AdminDashboard({ onNavigateToLanding, incomingRequests, onConsum
                     <Label>Last name</Label>
                     <Input value={newStaffForm.lastName} onChange={(e) => setNewStaffForm(prev => ({ ...prev, lastName: e.target.value }))} />
                   </div>
-                  <div>
-                    <Label>Username</Label>
-                    <Input value={newStaffForm.username} onChange={(e) => setNewStaffForm(prev => ({ ...prev, username: e.target.value }))} />
-                  </div>
-                  <div>
-                    <Label>Password</Label>
-                    <Input type="password" value={newStaffForm.password} onChange={(e) => setNewStaffForm(prev => ({ ...prev, password: e.target.value }))} />
-                  </div>
                 </div>
                 {staffNameError && <p className="text-sm text-destructive">{staffNameError}</p>}
                 <Button className="w-full" onClick={addStaff}>Add Staff Member</Button>
+                {generatedCreds && (
+                  <div className="p-3 bg-muted/50 rounded border">
+                    <p className="text-sm font-semibold">Generated credentials:</p>
+                    <p className="text-sm">Username: <span className="font-mono">{generatedCreds.username}</span></p>
+                    <p className="text-sm">Temp Password: <span className="font-mono">{generatedCreds.password}</span></p>
+                    <p className="text-xs text-muted-foreground mt-1">User must change password on first login.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

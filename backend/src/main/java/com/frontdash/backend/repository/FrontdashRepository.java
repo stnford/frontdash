@@ -97,7 +97,8 @@ public class FrontdashRepository {
 
     public List<Map<String, Object>> listPendingRegistrations() {
         return jdbcTemplate.queryForList(
-                "SELECT restName, contactName, contactEmail, contactPhone FROM Restaurant WHERE approvalByAdminStatus='Pending'");
+                "SELECT r.restName, r.contactName, r.contactEmail, r.contactPhone, a.streetAddress1, a.streetAddress2, a.city, a.state, a.zip " +
+                        "FROM Restaurant r LEFT JOIN Address a ON a.addressID = r.addressID WHERE r.approvalByAdminStatus='Pending'");
     }
 
     public void createStaff(String username, String password, String firstName, String lastName) {
@@ -233,6 +234,11 @@ public class FrontdashRepository {
     public void updateHours(String restName, String dayOfWeek, String openTime, String closeTime, String isClosed) {
         jdbcTemplate.update("CALL proc_owner_update_hours(?,?,?,?,?)",
                 restName, dayOfWeek, openTime, closeTime, isClosed);
+    }
+
+    public void deleteMenuItem(String restName, int itemId) {
+        jdbcTemplate.update("DELETE FROM RestaurantToMenu WHERE restName=? AND itemID=?", restName, itemId);
+        jdbcTemplate.update("DELETE FROM MenuItems WHERE itemID=?", itemId);
     }
 
     public Map<String, Object> getOrderSummary(int orderNumber) {

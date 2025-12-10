@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -51,6 +51,9 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
 
   const [showDeliveryForm, setShowDeliveryForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hours, setHours] = useState<any[]>([]);
+  const [isClosedNow, setIsClosedNow] = useState<string | null>(null);
+  const restName = cartItems[0]?.restaurantName || "";
 
   const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const serviceCharge = subtotal * 0.0825;
@@ -88,9 +91,52 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
     return Math.abs(currentTip - calculatedTip) < 0.01;
   };
 
+  useEffect(() => {
+    const loadHours = async () => {
+      if (!restName) return;
+      try {
+        const data = await api.getRestaurantHours(restName);
+        setHours(data);
+      } catch (err) {
+        console.error("Failed to load hours", err);
+      }
+    };
+    loadHours();
+  }, [restName]);
+
+  const checkClosed = useMemo(() => {
+    const now = new Date();
+    const dayName = now.toLocaleDateString("en-US", { weekday: "long" });
+    const today = hours.find((h) => h.dayOfWeek === dayName);
+    if (!today) return null;
+    if (today.isClosed === "Y") {
+      return "Restaurant is closed today.";
+    }
+    if (today.openTime && today.closeTime) {
+      const [openH, openM] = today.openTime.split(":").map((n: string) => Number(n));
+      const [closeH, closeM] = today.closeTime.split(":").map((n: string) => Number(n));
+      const openMinutes = openH * 60 + openM;
+      const closeMinutes = closeH * 60 + closeM;
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      if (nowMinutes < openMinutes || nowMinutes > closeMinutes) {
+        return `Orders accepted between ${today.openTime} - ${today.closeTime}`;
+      }
+    }
+    return null;
+  }, [hours]);
+
+  useEffect(() => {
+    setIsClosedNow(checkClosed);
+  }, [checkClosed]);
+
   const handlePaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isClosedNow) {
+      alert(isClosedNow);
+      return;
+    }
+
     const cleanedCard = paymentForm.cardNumber.replace(/\D/g, "");
     if (cleanedCard.length !== 16) {
       alert("Card declined: invalid card number");
@@ -121,6 +167,11 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
   const handleDeliverySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (Math.random() < 0.1) {
+      alert("Card verification failed. Please try again.");
+      return;
+    }
+
     if (!deliveryForm.contactPhone || deliveryForm.contactPhone.length !== 10) {
       alert("Please enter a valid 10-digit phone number");
       return;
@@ -308,6 +359,13 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
       <main className="flex-1 overflow-y-auto">
         <div className="container mx-auto px-4 py-6 max-w-2xl">
           <div className="space-y-6">
+            {isClosedNow && (
+              <Card className="border-destructive/40">
+                <CardContent className="text-destructive font-semibold py-4">
+                  {isClosedNow}
+                </CardContent>
+              </Card>
+            )}
             {/* Order Summary */}
             <Card>
               <CardHeader>
@@ -499,8 +557,12 @@ export function PaymentPage({ cartItems, onNavigateBack, onNavigateToOrderConfir
                 </CardContent>
               </Card>
 
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 py-6 text-lg font-bold">
-                Process Payment
+              <Button 
+                type="submit" 
+                className="w-full bg-primary hover:bg-primary/90 py-6 text-lg font-bold"
+                disabled={isSubmitting || Boolean(isClosedNow)}
+              >
+                {isClosedNow ? "Ordering Unavailable" : isSubmitting ? "Processing..." : "Process Payment"}
               </Button>
             </form>
           </div>

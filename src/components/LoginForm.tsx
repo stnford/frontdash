@@ -30,11 +30,22 @@ export function LoginForm({ title, userType, onNavigateBack, onLoginSuccess }: L
 
     const doLogin = async () => {
       try {
-        if (userType === 'restaurant') {
-          await api.restaurantLogin(credentials.username, credentials.password);
-        } else {
-          // Admin reuses staff login for now
-          await api.staffLogin(credentials.username, credentials.password);
+        const res = userType === 'restaurant'
+          ? await api.restaurantLogin(credentials.username, credentials.password)
+          : await api.staffLogin(credentials.username, credentials.password);
+
+        if (res.mustChangePassword) {
+          const newPass = window.prompt("First-time login: enter a new password (min 6 chars)");
+          if (!newPass || newPass.length < 6) {
+            alert("Password must be at least 6 characters");
+            return;
+          }
+          await api.changePassword({
+            username: credentials.username,
+            oldPassword: credentials.password,
+            newPassword: newPass,
+            userType: userType === "restaurant" ? "restaurant" : "staff"
+          });
         }
         onLoginSuccess(credentials.username);
       } catch (err: any) {

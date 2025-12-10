@@ -138,6 +138,10 @@ public class FrontdashService {
         return repository.createMenuItem(restName, name, desc, price, isAvailable);
     }
 
+    public void deleteMenuItem(String restName, int itemId) {
+        repository.deleteMenuItem(restName, itemId);
+    }
+
     public void updateHours(String restName, String dayOfWeek, String openTime, String closeTime, String isClosed) {
         repository.updateHours(restName, dayOfWeek, openTime, closeTime, isClosed);
     }

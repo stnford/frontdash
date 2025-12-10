@@ -168,7 +168,7 @@ export function RestaurantDetailPage({
                             <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-primary">${item.price}</p>
+                            <p className="font-bold text-primary">${item.price.toFixed(2)}</p>
                             {!item.available && (
                               <Badge variant="secondary" className="mt-1">
                                 Unavailable

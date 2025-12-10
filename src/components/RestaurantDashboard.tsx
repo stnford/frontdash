@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -13,6 +13,7 @@ import { DragDropImageUpload } from "./DragDropImageUpload";
 interface RestaurantDashboardProps {
   onNavigateToLanding: () => void;
   initialRestaurantName?: string;
+  username?: string;
 }
 
 type OpeningHoursEntry = {
@@ -32,7 +33,7 @@ const defaultOpeningHours: OpeningHoursEntry[] = [
   { day: 'Sunday', open: '10:00', close: '21:00', closed: false },
 ];
 
-export function RestaurantDashboard({ onNavigateToLanding, initialRestaurantName }: RestaurantDashboardProps) {
+export function RestaurantDashboard({ onNavigateToLanding, initialRestaurantName, username }: RestaurantDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'menu' | 'hours' | 'settings'>('overview');
   const [menuItems, setMenuItems] = useState<
     { id: string; name: string; price: number; available: boolean; image: string }[]
@@ -57,11 +58,13 @@ export function RestaurantDashboard({ onNavigateToLanding, initialRestaurantName
   const [emailAddress, setEmailAddress] = useState("allchicken@frontdash.test");
   const [accountUpdateMessage, setAccountUpdateMessage] = useState("");
   const [accountUpdateError, setAccountUpdateError] = useState("");
+  const [passwordForm, setPasswordForm] = useState({ current: "", next: "", confirm: "" });
 
   const [orders, setOrders] = useState<any[]>([]);
   const [orderSummaries, setOrderSummaries] = useState<Record<number, any>>({});
 
   const [openingHours, setOpeningHours] = useState<OpeningHoursEntry[]>(defaultOpeningHours);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (initialRestaurantName) {
@@ -69,35 +72,62 @@ export function RestaurantDashboard({ onNavigateToLanding, initialRestaurantName
     }
   }, [initialRestaurantName]);
 
-  useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        const all = await api.listOrders();
-        const byRest = (all as any[]).filter((o) => o.restName === restaurantName);
-        setOrders(byRest);
-        const summaries = await Promise.all(
-          byRest.map(async (o) => {
-            try {
-              const summary = await api.getOrderSummary(o.orderNumber);
-              return [o.orderNumber, summary] as const;
-            } catch {
-              return [o.orderNumber, null] as const;
-            }
-          })
-        );
-        const summaryMap: Record<number, any> = {};
-        for (const [num, summary] of summaries) {
-          if (summary) summaryMap[num] = summary;
-        }
-        setOrderSummaries(summaryMap);
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to load orders");
+  const loadAll = useCallback(async () => {
+    if (!restaurantName) return;
+    setRefreshing(true);
+    try {
+      const [allOrders, menu, hours] = await Promise.all([
+        api.listOrders(),
+        api.getRestaurantMenu(restaurantName),
+        api.getRestaurantHours(restaurantName)
+      ]);
+
+      const byRest = (allOrders as any[]).filter((o) => o.restName === restaurantName);
+      setOrders(byRest);
+      const summaries = await Promise.all(
+        byRest.map(async (o) => {
+          try {
+            const summary = await api.getOrderSummary(o.orderNumber);
+            return [o.orderNumber, summary] as const;
+          } catch {
+            return [o.orderNumber, null] as const;
+          }
+        })
+      );
+      const summaryMap: Record<number, any> = {};
+      for (const [num, summary] of summaries) {
+        if (summary) summaryMap[num] = summary;
       }
-    };
-    if (restaurantName) {
-      void loadOrders();
+      setOrderSummaries(summaryMap);
+
+      setMenuItems(
+        (menu as any[]).map((m) => ({
+          id: String(m.itemID),
+          name: m.itemName,
+          price: Number(m.itemPrice),
+          available: m.isAvailable === "Y",
+          image: getSampleFoodImage()
+        }))
+      );
+
+      if ((hours as any[]).length > 0) {
+        setOpeningHours((hours as any[]).map((h) => ({
+          day: h.dayOfWeek,
+          open: h.openTime?.slice(0,5) ?? "09:00",
+          close: h.closeTime?.slice(0,5) ?? "21:00",
+          closed: h.isClosed === "Y"
+        })));
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to load restaurant data");
+    } finally {
+      setRefreshing(false);
     }
   }, [restaurantName]);
+
+  useEffect(() => {
+    void loadAll();
+  }, [loadAll]);
 
   const summary = useMemo(() => {
     const revenue = orders.reduce((sum, o) => sum + Number(o.grandTotal || 0), 0);
@@ -107,39 +137,15 @@ export function RestaurantDashboard({ onNavigateToLanding, initialRestaurantName
       recent: orders.slice(0, 5)
     };
   }, [orders]);
+  const statusBadgeClass = (status?: string) => {
+    const s = (status || "").toLowerCase();
+    if (s.includes("delivered")) return "bg-green-100 text-green-800";
+    if (s.includes("progress")) return "bg-yellow-100 text-yellow-900";
+    if (s.includes("assigned")) return "bg-blue-100 text-blue-800";
+    return "bg-gray-200 text-gray-800";
+  };
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const [menu, hours] = await Promise.all([
-          api.getRestaurantMenu(restaurantName),
-          api.getRestaurantHours(restaurantName)
-        ]);
-
-        setMenuItems(
-          (menu as any[]).map((m) => ({
-            id: String(m.itemID),
-            name: m.itemName,
-            price: Number(m.itemPrice),
-            available: m.isAvailable === "Y",
-            image: getSampleFoodImage()
-          }))
-        );
-
-        if ((hours as any[]).length > 0) {
-          setOpeningHours((hours as any[]).map((h) => ({
-            day: h.dayOfWeek,
-            open: h.openTime?.slice(0,5) ?? "09:00",
-            close: h.closeTime?.slice(0,5) ?? "21:00",
-            closed: h.isClosed === "Y"
-          })));
-        }
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to load restaurant data");
-      }
-    };
-    void load();
-  }, [restaurantName]);
+  const refreshNow = () => void loadAll();
 
   const getSampleFoodImage = () => {
     const sampleImages = [
@@ -364,14 +370,53 @@ export function RestaurantDashboard({ onNavigateToLanding, initialRestaurantName
     setAccountUpdateMessage("Changes successfully saved.");
   };
 
+  const handlePasswordChange = () => {
+    if (passwordForm.next !== passwordForm.confirm) {
+      toast.error("New passwords do not match");
+      return;
+    }
+    if (passwordForm.next.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (!passwordForm.current) {
+      toast.error("Enter your current password");
+      return;
+    }
+    const loginUsername = username || restaurantName;
+    const doChange = async () => {
+      try {
+        await api.changePassword({
+          username: loginUsername,
+          oldPassword: passwordForm.current,
+          newPassword: passwordForm.next,
+          userType: "restaurant"
+        });
+        toast.success("Password updated");
+        setPasswordForm({ current: "", next: "", confirm: "" });
+      } catch (err: any) {
+        toast.error(err?.message || "Unable to update password");
+      }
+    };
+    void doChange();
+  };
+
   const deleteMenuItem = (id: string) => {
     const item = menuItems.find(i => i.id === id);
     if (confirm(`Are you sure you want to delete "${item?.name}"?`)) {
-      setMenuItems(prev => prev.filter(i => i.id !== id));
-      if (editingMenuItemId === id) {
-        cancelEditingMenuItem();
-      }
-      toast.success("Menu item deleted");
+      const doDelete = async () => {
+        try {
+          await api.deleteRestaurantMenuItem(restaurantName, Number(id));
+          setMenuItems(prev => prev.filter(i => i.id !== id));
+          if (editingMenuItemId === id) {
+            cancelEditingMenuItem();
+          }
+          toast.success("Menu item deleted");
+        } catch (err: any) {
+          toast.error(err?.message || "Failed to delete item");
+        }
+      };
+      void doDelete();
     }
   };
 
@@ -400,15 +445,26 @@ export function RestaurantDashboard({ onNavigateToLanding, initialRestaurantName
               <p className="text-white/80">{restaurantName}</p>
             </div>
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={handleLogout}
-            className="text-white hover:bg-white/20"
-          >
-            <LogOut className="w-5 h-5 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={refreshNow}
+              disabled={refreshing}
+              className="text-white hover:bg-white/20"
+            >
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleLogout}
+              className="text-white hover:bg-white/20"
+            >
+              <LogOut className="w-5 h-5 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -509,7 +565,7 @@ export function RestaurantDashboard({ onNavigateToLanding, initialRestaurantName
                                 {desc}
                               </p>
                             </div>
-                            <Badge>{order.orderStatus || "Pending"}</Badge>
+                            <Badge className={statusBadgeClass(order.orderStatus)}>{order.orderStatus || "Pending"}</Badge>
                           </div>
                         );
                       })}
@@ -830,17 +886,29 @@ export function RestaurantDashboard({ onNavigateToLanding, initialRestaurantName
                 <CardContent className="space-y-4">
                   <div>
                     <Label>Current Password</Label>
-                    <Input type="password" />
+                    <Input 
+                      type="password" 
+                      value={passwordForm.current}
+                      onChange={(e) => setPasswordForm(prev => ({ ...prev, current: e.target.value }))}
+                    />
                   </div>
                   <div>
                     <Label>New Password</Label>
-                    <Input type="password" />
+                    <Input 
+                      type="password" 
+                      value={passwordForm.next}
+                      onChange={(e) => setPasswordForm(prev => ({ ...prev, next: e.target.value }))}
+                    />
                   </div>
                   <div>
                     <Label>Confirm New Password</Label>
-                    <Input type="password" />
+                    <Input 
+                      type="password" 
+                      value={passwordForm.confirm}
+                      onChange={(e) => setPasswordForm(prev => ({ ...prev, confirm: e.target.value }))}
+                    />
                   </div>
-                  <Button>Change Password</Button>
+                  <Button onClick={handlePasswordChange}>Change Password</Button>
                 </CardContent>
               </Card>
 

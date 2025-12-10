@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "./ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
@@ -10,6 +10,7 @@ import { api } from "../lib/api";
 
 interface StaffDashboardProps {
   onNavigateToLanding: () => void;
+  username?: string;
 }
 
 type OrderSummary = {
@@ -23,26 +24,32 @@ type OrderSummary = {
   deliveryTime?: string;
 };
 
-export function StaffDashboard({ onNavigateToLanding }: StaffDashboardProps) {
+export function StaffDashboard({ onNavigateToLanding, username }: StaffDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'drivers' | 'settings'>('overview');
   const [isFirstLogin, setIsFirstLogin] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current: "", new: "", confirm: "" });
   
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [drivers, setDrivers] = useState<{ name: string; status: string }[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedDrivers, setSelectedDrivers] = useState<Record<number, string>>({});
+
+  const loadData = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const [ord, drv] = await Promise.all([api.listOrders(), api.listDrivers()]);
+      setOrders(ord as OrderSummary[]);
+      setDrivers((drv as any[]).map(d => ({ name: d.driverName, status: d.employementStatus })));
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to load data");
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [ord, drv] = await Promise.all([api.listOrders(), api.listDrivers()]);
-        setOrders(ord as OrderSummary[]);
-        setDrivers((drv as any[]).map(d => ({ name: d.driverName, status: d.employementStatus })));
-      } catch (err: any) {
-        toast.error(err?.message || "Failed to load data");
-      }
-    };
-    void load();
-  }, []);
+    void loadData();
+  }, [loadData]);
 
   const pendingOrders = useMemo(
     () => orders.filter(o => o.orderStatus === "In Progress"),
@@ -52,6 +59,13 @@ export function StaffDashboard({ onNavigateToLanding }: StaffDashboardProps) {
     () => orders.filter(o => o.orderStatus === "AssignedDriver"),
     [orders]
   );
+  const statusClass = (status?: string) => {
+    const s = (status || "").toLowerCase();
+    if (s.includes("delivered")) return "bg-green-100 text-green-800";
+    if (s.includes("assigned")) return "bg-blue-100 text-blue-800";
+    if (s.includes("progress")) return "bg-yellow-100 text-yellow-900";
+    return "bg-gray-200 text-gray-800";
+  };
 
   const handleLogout = () => {
     toast.success("Logged out successfully");
@@ -74,12 +88,39 @@ export function StaffDashboard({ onNavigateToLanding }: StaffDashboardProps) {
       return;
     }
 
-    toast.success("Password changed successfully");
-    setPasswordForm({ current: "", new: "", confirm: "" });
-    setIsFirstLogin(false);
+    if (!passwordForm.current) {
+      toast.error("Enter your current password");
+      return;
+    }
+
+    if (!username) {
+      toast.error("Missing username for password change");
+      return;
+    }
+
+    const doChange = async () => {
+      try {
+        await api.changePassword({
+          username,
+          oldPassword: passwordForm.current,
+          newPassword: passwordForm.new,
+          userType: "staff"
+        });
+        toast.success("Password changed successfully");
+        setPasswordForm({ current: "", new: "", confirm: "" });
+        setIsFirstLogin(false);
+      } catch (err: any) {
+        toast.error(err?.message || "Failed to change password");
+      }
+    };
+    void doChange();
   };
 
   const assignDriver = (orderNumber: number, driverName: string) => {
+    if (!driverName) {
+      toast.error("Select a driver first");
+      return;
+    }
     const doAssign = async () => {
       try {
         await api.assignDriver(orderNumber, driverName);
@@ -169,15 +210,26 @@ export function StaffDashboard({ onNavigateToLanding }: StaffDashboardProps) {
               <h1 className="text-xl font-bold text-white">Staff Dashboard</h1>
             </div>
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={handleLogout}
-            className="text-white hover:bg-white/20"
-          >
-            <LogOut className="w-5 h-5 mr-2" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost"
+              size="sm"
+              onClick={() => void loadData()}
+              className="text-white hover:bg-white/20"
+              disabled={refreshing}
+            >
+              {refreshing ? "Refreshing..." : "Refresh"}
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleLogout}
+              className="text-white hover:bg-white/20"
+            >
+              <LogOut className="w-5 h-5 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -264,11 +316,25 @@ export function StaffDashboard({ onNavigateToLanding }: StaffDashboardProps) {
                           <p className="font-semibold">Order #{order.orderNumber}</p>
                           <p className="text-sm text-muted-foreground">{order.restName}</p>
                         </div>
-                        <Badge variant="secondary">{order.orderStatus}</Badge>
+                        <Badge className={statusClass(order.orderStatus)}>{order.orderStatus}</Badge>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => assignDriver(order.orderNumber, drivers.find(d => d.status === "Active")?.name || "")}>
-                          Assign first available
+                      <div className="flex gap-2 items-center">
+                        <select
+                          className="border rounded px-2 py-1 text-sm"
+                          value={selectedDrivers[order.orderNumber] || ""}
+                          onChange={(e) => setSelectedDrivers(prev => ({ ...prev, [order.orderNumber]: e.target.value }))}
+                        >
+                          <option value="">Select driver</option>
+                          {drivers.filter(d => d.status === "Active").map((d) => (
+                            <option key={d.name} value={d.name}>{d.name}</option>
+                          ))}
+                        </select>
+                        <Button 
+                          size="sm" 
+                          onClick={() => assignDriver(order.orderNumber, selectedDrivers[order.orderNumber] || "")}
+                          disabled={!selectedDrivers[order.orderNumber]}
+                        >
+                          Assign Driver
                         </Button>
                       </div>
                     </div>
@@ -290,7 +356,7 @@ export function StaffDashboard({ onNavigateToLanding }: StaffDashboardProps) {
                           <p className="font-semibold">Order #{order.orderNumber}</p>
                           <p className="text-sm text-muted-foreground">Driver: {order.driverName || 'N/A'}</p>
                         </div>
-                        <Badge variant="secondary">{order.orderStatus}</Badge>
+                        <Badge className={statusClass(order.orderStatus)}>{order.orderStatus}</Badge>
                       </div>
                       <div className="flex gap-2">
                         <Button size="sm" onClick={() => recordDelivery(order.orderNumber)}>Mark Delivered</Button>

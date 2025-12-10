@@ -24,6 +24,40 @@ public class AuthRepository {
         return executeLoginProc("{call proc_login_restaurant(?,?,?)}", username, password);
     }
 
+    public UserRecord findStaff(String username) {
+        return jdbcTemplate.query(
+                "SELECT lc.username, lc.password, lc.userType, s.employementStatus " +
+                        "FROM LoginCredentials lc JOIN Staff s ON s.username = lc.username " +
+                        "WHERE lc.username = ? AND lc.userType='Staff'",
+                rs -> rs.next() ? new UserRecord(
+                        rs.getString("username"),
+                        rs.getString("password"),
+                        rs.getString("userType"),
+                        rs.getString("employementStatus")
+                ) : null,
+                username
+        );
+    }
+
+    public UserRecord findRestaurantUser(String username) {
+        return jdbcTemplate.query(
+                "SELECT lc.username, lc.password, lc.userType, r.approvalByAdminStatus " +
+                        "FROM LoginCredentials lc LEFT JOIN Restaurant r ON r.restName = lc.username " +
+                        "WHERE lc.username = ? AND lc.userType='Restaurant'",
+                rs -> rs.next() ? new UserRecord(
+                        rs.getString("username"),
+                        rs.getString("password"),
+                        rs.getString("userType"),
+                        rs.getString("approvalByAdminStatus")
+                ) : null,
+                username
+        );
+    }
+
+    public void updatePassword(String username, String newPassword) {
+        jdbcTemplate.update("UPDATE LoginCredentials SET password=? WHERE username=?", newPassword, username);
+    }
+
     private boolean executeLoginProc(String procCall, String username, String password) {
         return jdbcTemplate.execute((Connection connection) -> {
             try (CallableStatement cs = connection.prepareCall(procCall)) {
@@ -35,4 +69,6 @@ public class AuthRepository {
             }
         });
     }
+
+    public record UserRecord(String username, String password, String userType, String status) {}
 }

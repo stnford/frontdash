@@ -23,14 +23,19 @@ async function fetchJson<T>(
 export const api = {
   health: () => fetchJson<{ status: string }>("/api/health"),
   staffLogin: (username: string, password: string) =>
-    fetchJson<{ success: boolean; role: string; message: string }>("/api/auth/staff-login", {
+    fetchJson<{ success: boolean; role: string; message: string; mustChangePassword?: boolean }>("/api/auth/staff-login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
   restaurantLogin: (username: string, password: string) =>
-    fetchJson<{ success: boolean; role: string; message: string }>("/api/auth/restaurant-login", {
+    fetchJson<{ success: boolean; role: string; message: string; mustChangePassword?: boolean }>("/api/auth/restaurant-login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
+    }),
+  changePassword: (payload: { username: string; oldPassword: string; newPassword: string; userType: "staff" | "restaurant" }) =>
+    fetchJson<{ success: boolean; role: string; message: string }>("/api/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
   registerRestaurant: (payload: { restName: string; streetAddress1: string; streetAddress2?: string; city: string; state: string; zip: string; contactName: string; contactEmail: string; contactPhone: string }) =>
     fetchJson<{ message: string }>("/api/restaurant/registration", {
@@ -50,6 +55,10 @@ export const api = {
     fetchJson<{ message: string; itemId: number }>("/api/restaurant/menu-item", {
       method: "POST",
       body: JSON.stringify(payload),
+    }),
+  deleteRestaurantMenuItem: (restName: string, itemId: number) =>
+    fetchJson<{ message: string }>(`/api/restaurant/menu-item?restName=${encodeURIComponent(restName)}&itemId=${itemId}`, {
+      method: "DELETE",
     }),
   updateRestaurantHours: (payload: { restName: string; dayOfWeek: string; openTime: string; closeTime: string; isClosed: string }) =>
     fetchJson<{ message: string }>("/api/restaurant/hours", {

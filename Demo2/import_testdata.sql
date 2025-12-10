@@ -153,6 +153,10 @@ INSERT INTO Driver(driverName, employementStatus, isAvailable) VALUES ('Vicky  K
 INSERT INTO Driver(driverName, employementStatus, isAvailable) VALUES ('Lucy Gordon','Inactive','Open');
 -- Sample orders based on restaurants
 SET @nowdate := CURDATE(); SET @nowtime := CURTIME();
-INSERT INTO Orders(restName, orderDate, orderTime, subtotalAmount, serviceCharge, tipAmount, grandTotal, orderStatus) VALUES ('All Chicken Meals', @nowdate, @nowtime, 0.00, 0.00, 0.00, 0.00, 'In Progress');
-INSERT INTO Orders(restName, orderDate, orderTime, subtotalAmount, serviceCharge, tipAmount, grandTotal, orderStatus) VALUES ('Pizza Only', @nowdate, @nowtime, 0.00, 0.00, 0.00, 0.00, 'In Progress');
-INSERT INTO Orders(restName, orderDate, orderTime, subtotalAmount, serviceCharge, tipAmount, grandTotal, orderStatus) VALUES ('Best Burgers', @nowdate, @nowtime, 0.00, 0.00, 0.00, 0.00, 'In Progress');
+-- Additional staff accounts
+INSERT INTO LoginCredentials(username,password,userType) VALUES ('mollie21','temp-pw','Staff');
+INSERT INTO Staff(username, firstName, lastName, employementStatus) VALUES ('mollie21','Mollie','Demo','Active');
+INSERT INTO LoginCredentials(username,password,userType) VALUES ('ruby34','temp-pw','Staff');
+INSERT INTO Staff(username, firstName, lastName, employementStatus) VALUES ('ruby34','Ruby','Demo','Active');
+INSERT INTO LoginCredentials(username,password,userType) VALUES ('luke77','temp-pw','Staff');
+INSERT INTO Staff(username, firstName, lastName, employementStatus) VALUES ('luke77','Luke','Demo','Active');

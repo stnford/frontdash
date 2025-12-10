@@ -21,15 +21,15 @@ public class RestaurantController {
     this.service = service;
   }
 
-  @GetMapping("/menu")
-  public java.util.List<java.util.Map<String, Object>> getMenu(@RequestParam("restName") String restName) {
-    return service.getMenu(restName);
-  }
+    @GetMapping("/menu")
+    public java.util.List<java.util.Map<String, Object>> getMenu(@RequestParam("restName") String restName) {
+        return service.getMenu(restName);
+    }
 
-  @GetMapping("/hours")
-  public java.util.List<java.util.Map<String, Object>> getHours(@RequestParam("restName") String restName) {
-    return service.getHours(restName);
-  }
+    @GetMapping("/hours")
+    public java.util.List<java.util.Map<String, Object>> getHours(@RequestParam("restName") String restName) {
+        return service.getHours(restName);
+    }
 
   @PostMapping("/registration")
   public ResponseEntity<Map<String, String>> register(@Valid @RequestBody RestaurantRegistrationRequest request) {
@@ -54,29 +54,35 @@ public class RestaurantController {
     }
 
     @PutMapping("/menu-item")
-  public ResponseEntity<Map<String, String>> updateMenu(@Valid @RequestBody MenuUpdateRequest request) {
-    service.updateMenuItem(
-            request.getRestName(),
-            request.getItemId(),
-            request.getItemName(),
-            request.getItemDescription(),
-            request.getItemPrice(),
-            request.getIsAvailable()
-    );
-    return ResponseEntity.ok(Map.of("message", "Menu item updated"));
-  }
+    public ResponseEntity<Map<String, String>> updateMenu(@Valid @RequestBody MenuUpdateRequest request) {
+        service.updateMenuItem(
+                request.getRestName(),
+                request.getItemId(),
+                request.getItemName(),
+                request.getItemDescription(),
+                request.getItemPrice(),
+                request.getIsAvailable()
+        );
+        return ResponseEntity.ok(Map.of("message", "Menu item updated"));
+    }
 
-  @PostMapping("/menu-item")
-  public ResponseEntity<Map<String, Object>> createMenu(@Valid @RequestBody MenuCreateRequest request) {
-    int itemId = service.createMenuItem(
-            request.getRestName(),
-            request.getItemName(),
-            request.getItemDescription(),
-            request.getItemPrice(),
-            request.getIsAvailable()
-    );
-    return ResponseEntity.ok(Map.of("message", "Menu item created", "itemId", itemId));
-  }
+    @PostMapping("/menu-item")
+    public ResponseEntity<Map<String, Object>> createMenu(@Valid @RequestBody MenuCreateRequest request) {
+        int itemId = service.createMenuItem(
+                request.getRestName(),
+                request.getItemName(),
+                request.getItemDescription(),
+                request.getItemPrice(),
+                request.getIsAvailable()
+        );
+        return ResponseEntity.ok(Map.of("message", "Menu item created", "itemId", itemId));
+    }
+
+    @DeleteMapping("/menu-item")
+    public ResponseEntity<Map<String, String>> deleteMenuItem(@RequestParam("restName") String restName, @RequestParam("itemId") int itemId) {
+        service.deleteMenuItem(restName, itemId);
+        return ResponseEntity.ok(Map.of("message", "Menu item deleted"));
+    }
 
     @PutMapping("/hours")
     public ResponseEntity<Map<String, String>> updateHours(@Valid @RequestBody HoursUpdateRequest request) {

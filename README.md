@@ -22,12 +22,17 @@
 
   ## Demo logins (after loading Demo2/import_testdata.sql)
 
-  - Admin/Staff (all use password `pw`):
-    - richard01
-    - cox02
-    - deckon03
-    - cox04
-    - mullard05
+  - Staff (existing):
+    - richard01 / pw
+    - cox02 / pw
+    - deckon03 / pw
+    - cox04 / pw
+    - mullard05 / pw
+  - Staff (added for demo; will be asked to change password on first login):
+    - mollie21 / temp-pw
+    - ruby34 / temp-pw
+    - luke77 / temp-pw
+    - Any newly added staff from the admin dashboard get an auto-generated username (last name + two digits) and temp password `temp-####`; they must change it at first login.
   - Restaurant owners (password `pw`):
     - owner_chicken
     - owner_pizza
